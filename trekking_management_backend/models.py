@@ -10,7 +10,7 @@ class User(db.Model):
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(70), nullable=False)
-    role = db.Column(db.String(50), default='trekker' , nullable=False) #Default role is 'trekker', can be 'admin' or 'trekker'
+    role = db.Column(db.String(50), default='trekker' , nullable=False) #Default role is 'trekker', can be 'admin' or 'staff'
     status = db.Column(db.String(50), default='active' , nullable=False) # Default status is 'active', can be 'blocked'
     created_at = db.Column(db.DateTime, default=datetime.utcnow , nullable=False)
     contact_number = db.Column(db.String(20) , nullable=False)
@@ -35,7 +35,7 @@ class Trek(db.Model):
     status = db.Column(db.String(50), default='open' , nullable=False) # can be open , closed , completed, pending ,approved.
     assigned_guide_id = db.Column(db.Integer , db.ForeignKey('user.id')) #Name of the assigned guide for the trek
 
-    staff_assigned=db.relationship('user', backref='treks')
+    guide_assigned=db.relationship('User', backref='assigned_treks')
     
 class Booking(db.Model):
     __tablename__ = 'booking'
@@ -45,10 +45,10 @@ class Booking(db.Model):
     trek_id = db.Column(db.Integer, db.ForeignKey('trek.id'), nullable=False)
     booking_date = db.Column(db.DateTime, default=datetime.utcnow , nullable=False)
     status = db.Column(db.String(50), default='booked' , nullable=False) #Default booking status is 'booked', can be 'cancelled' or 'completed'
-    payment_standing= db.Column(db.String(50), default='pending' , nullable=False) #Default payment status is 'pending', can be 'paid' or 'failed'
+    payment_flag= db.Column(db.String(50), default='pending' , nullable=False) #Default payment status is 'pending', can be 'paid' or 'failed'
 
-    trek_customer=db.relationship('user', backref='bookings', lazy=True)
-    trek_booked=db.relationship('trek', backref='bookings'  , lazy=True)
+    booking_user=db.relationship('User', backref='bookings', lazy=True)
+    booking_trek=db.relationship('Trek', backref='bookings'  , lazy=True)
 
     __table_args__ = (db.UniqueConstraint('user_id', 'trek_id', name='unique_booking'),)
 
@@ -68,7 +68,9 @@ class User_Badge(db.Model):
     badge_id = db.Column(db.Integer, db.ForeignKey('badge.id'), nullable=False)
     earning_date = db.Column(db.DateTime, default=datetime.utcnow)
 
-    user=db.relationship('user', backref='user_badges' , lazy=True)
-    badge=db.relationship('badge', backref='user_badges' , lazy=True)
+    user=db.relationship('User', backref='user_badges' , lazy=True)
+    badge=db.relationship('Badge', backref='user_badges' , lazy=True)
+
+    __table_args__ = (db.UniqueConstraint('user_id','badge_id',name='unique_user_badge'),)
 
 
