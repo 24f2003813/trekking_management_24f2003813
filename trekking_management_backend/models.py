@@ -32,8 +32,9 @@ class Trek(db.Model):
     slots_available = db.Column(db.Integer , nullable=False)
     start_date = db.Column(db.DateTime , nullable=False)
     end_date = db.Column(db.DateTime , nullable=False)
-    status = db.Column(db.String(50), default='open' , nullable=False) # can be open , closed , completed, pending ,approved.
-    assigned_guide_id = db.Column(db.Integer , db.ForeignKey('user.id')) #Name of the assigned guide for the trek
+    status = db.Column(db.String(50), default='open' , nullable=False) # can be open , full , completed
+    max_trekker = db.Column(db.Integer, default=10)
+    assigned_guide_id = db.Column(db.Integer , db.ForeignKey('user.id') , nullable=True) #Name of the assigned guide for the trek
 
     guide_assigned=db.relationship('User', backref='assigned_treks')
     
