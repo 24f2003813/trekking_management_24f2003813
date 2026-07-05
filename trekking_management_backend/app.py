@@ -25,6 +25,22 @@ if __name__ == "__main__":
     
     with app.app_context():
         db.create_all()
+
+        badges = [
+        {"name": "Trailblazer", "description": "Complete your first trek", "criteria_treks": 1},
+        {"name": "Explorer", "description": "Complete 5 treks", "criteria_treks": 5},
+        {"name": "Summit Master", "description": "Complete 10 treks", "criteria_treks": 10}
+        ]
+
+        for b in badges:
+            if not Badge.query.filter_by(name=b["name"]).first():
+                db.session.add(Badge(
+                    name=b["name"],
+                    description=b["description"],
+                    criteria_treks=b["criteria_treks"]
+                ))
+        db.session.commit()
+        
         if not User.query.filter_by(role='admin').first():
             admin=User(
                 name="Admin1",
@@ -207,9 +223,16 @@ def update_delete_trek(trek_id):
         trek.name=data.get('name',trek.name)
         trek.location=data.get('location',trek.location)
         trek.difficulty=data.get('difficulty',trek.difficulty)
+
         valid_statuses = ["open", "full", "completed", "cancelled"]
         if data.get('status') in valid_statuses:
             trek.status = data['status']
+
+        if 'assigned_guide_id' in data:
+            staff=User.query.filter_by(id=data['assigned_guide_id'],role='staff').first()
+            if not staff:
+                return jsonify({"error":"Invalid staff ID"})
+            trek.assigned_guide_id=staff.id
 
         db.session.commit()
         return jsonify({"message":"Trek details are updated successfully",
@@ -350,6 +373,7 @@ def alter_staff_detail(staff_id):
     staff=User.query.filter_by(id=staff_id,role='staff').first()
     if not staff:
         return jsonify({"error":"This staff member is not found"}),404
+    
     if request.method == 'PUT':
         data=request.get_json()
         staff.name=data.get('name',staff.name)
@@ -357,11 +381,20 @@ def alter_staff_detail(staff_id):
         staff.specialization = data.get('specialization', staff.specialization)
         staff.status = data.get('status', staff.status)
 
+        if staff.status.lower()=='block':
+            assigned_trek=Trek.query.filter_by(assigned_guide_id=staff.id).all()
+            for trek in assigned_trek:
+                trek.assigned_guide_id=None
         db.session.commit()
         return jsonify({"message":"Staff member detail is updated sucessfully",
                         "notification":f"Staff '{staff.name}' details updated"}),200
 
     if request.method == 'DELETE':
+
+        assigned_treks = Trek.query.filter_by(assigned_guide_id=staff.id).all()
+        for trek in assigned_treks:
+            trek.assigned_guide_id = None
+
         db.session.delete(staff)
         db.session.commit()
         return jsonify({
@@ -377,6 +410,11 @@ def all_users():
     if present_sessioner.role != "admin":
         return jsonify({"error": "Sorry you cannot access this page"}), 403
     
+    search_query=request.args.get('search')
+    query=User.query.filter_by(role='trekker')
+    if search_query:
+        query=query.filter(User.name.ilike(f"%{search_query}%"))
+
     users=User.query.filter_by(role='trekker').all()
     trekker_list=[
         {'id':trekker.id,'name':trekker.name,'email':trekker.email,'contact_number':trekker.contact_number,'status':trekker.status}
@@ -402,11 +440,22 @@ def manage_trekker_status(trekker_id):
             return jsonify({"error":"Status is required"}),400
         
         trekker.status=data['status']
+
+        if trekker.status.lower() == "blocked":
+            active_bookings = Booking.query.filter_by(user_id=trekker.id, status="booked").all()
+            for b in active_bookings:
+                b.status = "cancelled"
+
         db.session.commit()
         return jsonify({"message":"Trekker Status is updated sucessfully",
                         "notification":f"Trekker '{trekker.name}' updated status is '{trekker.status}'"}),200
     
     if request.method =='DELETE':
+
+        active_bookings = Booking.query.filter_by(user_id=trekker.id, status="booked").all()
+        for b in active_bookings:
+            b.status = "cancelled"
+
         db.session.delete(trekker)
         db.session.commit()
         return jsonify({"message":"Trekker Data is deleted sucessfully",
@@ -436,6 +485,20 @@ def listing_bookings():
     ]
     return jsonify(listing),200
 
+def check_and_assign_badge(user_id):
+    completed_trek_count=Booking.query.filter_by(user_id=user_id, status="completed").count()
+    badges = Badge.query.all()
+
+    for badge in badges:
+        # If user has enough treks for this badge
+        if completed_trek_count >= badge.criteria_treks:
+            # Check if already earned
+            existing = User_Badge.query.filter_by(user_id=user_id, badge_id=badge.id).first()
+            if not existing:
+                new_badge = User_Badge(user_id=user_id, badge_id=badge.id)
+                db.session.add(new_badge)
+    db.session.commit()
+
 @app.route('/api/admin/bookings/<int:booking_id>/status',methods=['PUT','DELETE'])
 @jwt_required()
 def manage_booking(booking_id):
@@ -459,6 +522,9 @@ def manage_booking(booking_id):
         booking.status=data['status']
         db.session.commit()
 
+        if booking.status == 'completed':
+            check_and_assign_badge(booking.user_id)
+
         return jsonify({"message":"Status updated sucessfully ",
                         "notification":f"Booking id {booking.id} marked as {booking.status}"}),200
     
@@ -479,7 +545,7 @@ def pay_booking(booking_id):
         return jsonify({"error": "Sorry you cannot access this page"}), 403
     
     booking=Booking.query.get(booking_id)
-    if not booking or booking.user_id != present_Sessioner['id']:
+    if not booking or booking.user_id != present_sessioner.id:
         return jsonify({"error":"Booking not found"}),404
     
     data=request.get_json()
@@ -501,7 +567,7 @@ def staff_dashboard():
     if present_sessioner.role != "staff":
         return jsonify({"error": "Sorry you cannot access this page"}), 403
 
-    assigned_treks = Trek.query.filter_by(assigned_guide_id=staff_identity['id']).all()
+    assigned_treks = Trek.query.filter_by(assigned_guide_id=present_sessioner.id).all()
     trek_count = len(assigned_treks)
 
     participant_total = sum(
@@ -525,8 +591,223 @@ def staff_dashboard():
         ]
     }), 200
 
-@app.route('/api/staff/treks/<int:trek_id>/slots',methods=['PUT'])
+@app.route('/api/staff/treks/<int:trek_id>/slots_capacity',methods=['PUT'])
 @jwt_required()
+def update_trek_slots(trek_id):
+    staff_id=int(get_jwt_identity())
+    staff = User.query.get(staff_id)
+    if staff.role != 'staff':
+        return jsonify({"error":"Sorry you cannot access this page"}),403
+    
+    trek=Trek.query.get(trek_id)
+    if not trek or trek.assigned_guide_id != staff.id:
+        return jsonify({"error":"Trek not found or this trek is not assigned to you"}),404
+    
+    data=request.get_json()
+    if not data.get("max_trekker"):
+        return jsonify({"error":"Maximum Trekker limit is required"}),400
+    
+    trek.max_trekker=data['max_trekker']
+    db.session.commit()
+    return jsonify({"message":f"Capacity of trek '{trek.name}' to {trek.max_trekker} "})
 
+@app.route('/api/staff/treks/<int:trek_id>/status',methods=['PUT'])
+@jwt_required()
+def update_status(trek_id):
+    staff_id=int(get_jwt_identity())
+    staff=User.query.get(staff_id)
+    if staff.role != 'staff':
+        return jsonify({"error":"Sorry you cannot access the page"}),403
+    
+    trek=Trek.query.get(trek_id)
+    if not trek or trek.assigned_guide_id != staff.id:
+        return jsonify({"error":"Trek not found or trek is not assigned to you"}),400
+    
+    data=request.get_json()
+    valid_status=['open','cancelled','full','completed']
+    if data.get("status") not in valid_status:
+        return jsonify({"error":"Please provide valid status"}),400
+    
+    trek.status=data['status']
+    db.session.commit()
+    return jsonify({"message":f"Status updated to '{trek.status}'"})
 
+@app.route('/api/staff/trek/<int:trek_id>/participants',methods=["GET"])
+@jwt_required()
+def trek_participants(trek_id):
+    staff_id=int(get_jwt_identity())
+    staff=User.query.get(staff_id)
+    if staff.role != 'staff':
+        return jsonify({"error":"Sorry you cannot access the page"}),403
+    
+    trek=Trek.query.get(trek_id)
+    if not trek or trek.assigned_guide_id != staff.id:
+        return jsonify({"error":"Trek not found or trek is not assigned to you"}),400
+    
+    participants=Booking.query.filter_by(trek_id=trek.id,status='booked').all()
+    participants_list=[
+        {
+            "id":b.user_id,
+            "name":b.booking_user.name,
+            "email":b.booking_user.email,
+            "contact_number":b.booking_user.contact_number,
+            "trek":b.booking_trek.name
+        }
+        for b in participants
+    ]
+    return jsonify(participants_list),200
 
+@app.route('/api/user/dashboard',methods=["GET"])
+@jwt_required()
+def user_dashboard():
+    trekker_id=int(get_jwt_identity())
+    trekker=User.query.get(trekker_id)
+    if not trekker or trekker.role !='trekker':
+        return jsonify({"error":"Sorry you cannot access this page"}),403
+    
+    name_search=request.args.get('name')
+    location_search=request.args.get('location')
+    difficulty_search=request.args.get('difficulty')
+    trek_separation=Trek.query.filter_by(status='open')
+    if name_search:
+        trek_separation=trek_separation.filter(Trek.name.ilike(f"%{name_search}%"))
+    if location_search:
+        trek_separation=trek_separation.filter(Trek.location.ilike(f"%{location_search}%"))
+    if difficulty_search:
+        trek_separation=trek_separation.filter(Trek.difficulty.ilike(f"%{difficulty_search}%"))
+    
+    available_trek=[]
+    treks=Trek.query.filter_by(status='open').all()
+    for trek in treks:
+        booked_slot_count=Booking.query.filter_by(trek_id=trek.id,status='booked').count()
+        slots_available=trek.max_trekker - booked_slot_count
+        if slots_available>0:
+            available_trek.append({
+                "id": trek.id,
+                "name": trek.name,
+                "location": trek.location,
+                "difficulty": trek.difficulty,
+                "status": trek.status,
+                "max_trekker": trek.max_trekker,
+                "slots_available": slots_available
+            })
+
+    bookings=Booking.query.filter_by(user_id=trekker.id).all()
+    booked_trek=[
+        {
+            "Booking_id":b.id,
+            "trek_id":b.trek_id,
+            "trek_name":b.booking_trek.name,
+            "status":b.status,
+            "booking_date":b.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        for b in bookings if b.status=='booked'
+    ]
+
+    history=[
+        {
+            "booking_id": b.id,
+            "trek_id": b.trek_id,
+            "trek_name": b.booking_trek.name if b.booking_trek else None,
+            "status": b.status,
+            "booking_date": b.booking_date.strftime("%Y-%m-%d %H:%M:%S")
+
+        }
+        for b in bookings if b.status in ['completed','cancelled']
+    ]
+    return jsonify({
+        "available_treks": available_trek,
+        "booked_treks": booked_trek,
+        "history": history
+    }),200
+
+@app.route('/api/user/booking_cancel/<int:booking_id>',methods=['PUT'])
+@jwt_required()
+def cancel_booking(booking_id):
+    trekker_id=int(get_jwt_identity())
+    trekker=User.query.get(booking_id)
+    if trekker.role != 'trekker':
+        return jsonify({"error":"Sorry you cannot access this page"}),403
+    
+    booking=Booking.query.get(booking_id)
+    if not booking or booking.user_id != trekker.id:
+        return jsonify({"error": "Booking not found"}), 404
+
+    if booking.status != "booked":
+        return jsonify({"error": "Only active bookings can be cancelled"}), 400
+    
+    booking.status='cancelled'
+    db.session.commit()
+    return jsonify({"message":"Booking cancelled sucessfully",
+                    "notification":f"Booking {booking.booking_trek.name} cancelled sucessfully"}),200
+
+@app.route('/api/user/edit_profile',methods=['GET','PUT'])
+@jwt_required()
+def edit_profile():
+    trekker_id=int(get_jwt_identity())
+    trekker=User.query.get(trekker_id)
+
+    if not trekker or trekker.role != 'role':
+        return jsonify({"error":"Sorry you cannot access this page"}),403
+    
+    if request.method == 'GET':
+        return jsonify({
+            "id": trekker.id,
+            "name": trekker.name,
+            "email": trekker.email,
+            "contact_number": trekker.contact_number,
+            "emergency_contact_number": trekker.emergency_contact_number,
+            "status": trekker.status
+        }),200
+
+    if request.method == 'PUT':
+        data = request.get_json()
+        trekker.name = data.get("name", trekker.name)
+        trekker.email = data.get("email", trekker.email)
+        trekker.contact_number = data.get("contact_number", trekker.contact_number)
+        trekker.emergency_contact_number = data.get("emergency_contact_number", trekker.emergency_contact_number)
+
+        db.session.commit()
+        return jsonify({
+            "message":"Profile updated successfully",
+            "notification":f"Trekker '{trekker.name}' profile updated"
+        }),200
+    
+@app.route('/api/user/bookings', methods=['POST'])
+@jwt_required()
+def book_trek():
+    trekker_id = int(get_jwt_identity())
+    trekker = User.query.get(trekker_id)
+    if not trekker or trekker.role != 'trekker':
+        return jsonify({"error":"Unauthorized"}),403
+
+    data = request.get_json()
+    trek_id = data.get("trek_id")
+    trek = Trek.query.get(trek_id)
+
+    if not trek or trek.status != "open":
+        return jsonify({"error":"Trek not available for booking"}),400
+
+    existing_booking = Booking.query.filter_by(
+        user_id=trekker.id, trek_id=trek.id, status="booked"
+    ).first()
+    if existing_booking:
+        return jsonify({"error":"You have already booked this trek"}),400
+
+    booked_count = Booking.query.filter_by(trek_id=trek.id, status="booked").count()
+    if booked_count >= trek.max_trekker:
+        return jsonify({"error":"No slots available"}),400
+
+    new_booking = Booking(
+        user_id=trekker.id,
+        trek_id=trek.id,
+        status="booked",
+        booking_date=datetime.now()
+    )
+    db.session.add(new_booking)
+    db.session.commit()
+
+    return jsonify({
+        "message":"Trek booked successfully",
+        "notification":f"Trek '{trek.name}' booked by {trekker.name}"
+    }),201

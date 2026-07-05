@@ -38,25 +38,78 @@
             </div>
           </div>
         </div>
+        <div class="mt-5">
+          <h4 class="mb-3">Recent Bookings</h4>
+          <table class="table table-striped table-bordered">
+            <thead class="table-light">
+              <tr>
+                <th>ID</th>
+                <th>Trek Name</th>
+                <th>User Name</th>
+                <th>Status</th>
+                <th>Payment</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="b in recentBooking" :key="b.id">
+                <td>{{ b.id }}</td>
+                <td>{{ b.trek_name }}</td>
+                <td>{{ b.user_name }}</td>
+                <td>{{ b.status }}</td>
+                <td>{{ b.payment_flag ? 'Paid' : 'Pending' }}</td>
+                <td>{{ b.booking_date }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+import axios from "axios";
 export default {
   name: "AdminDashboard",
+
   data() {
     return {
-      summaryCards: [
-        { title: "Total Treks", value: 25 },
-        { title: "Total Trekkers", value: 120 },
-        { title: "Total Trekking Staff", value: 18 },
-        { title: "Total Bookings", value: 185 }
-      ]
+      summaryCards: [],
+      recentBooking: []
+    };
+  },
+  async mounted() {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(
+        "http://localhost:5000/api/admin/dashboard",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      this.summaryCards = [
+        { title: "Total Treks", value: res.data.summary.total_treks },
+        { title: "Total Trekkers", value: res.data.summary.total_users },
+        { title: "Total Trekking Staff", value: res.data.summary.total_staff },
+        { title: "Total Bookings", value: res.data.summary.total_bookings }
+      ];
+
+      this.recentBooking = res.data.recent_bookings;
+
+    } catch (err) {
+      console.error(err);
+      if (err.response) {
+        alert(err.response.data.error || "Something went wrong");
+      } else {
+        alert("Unable to connect to the server.");
+      }
     }
   }
-}
+};
 </script>
 
 <style scoped>
