@@ -10,9 +10,14 @@ import Staff from '../views/AdminStaff.vue'
 import StaffAdd from '../views/AdminStaffAdd.vue'
 // import StaffEdit from '../views/AdminStaffEdit.vue'
 import Users from '../views/AdminTrekker.vue'
+import TrekEdit from '../views/AdminTrekEdit.vue'
 import Bookings from '../views/AdminBooking.vue'
 import Logout from '../views/Logout.vue'
-
+import StaffDashboard from '../views/StaffDashboard.vue'
+import StaffProfile from '../views/StaffProfile.vue'
+import AdminTrekEdit from '../views/AdminTrekEdit.vue'
+// import StaffParticipants from '../views/StaffParticipants.vue'
+// import StaffTrek from '../views/StaffTrek.vue'
 
 const routes =[
   {path: '/', component:LandingView},
@@ -26,6 +31,11 @@ const routes =[
   // {path:'/admin/staff/edit',component:StaffEdit},
   {path:'/admin/trekkers',component:Users},
   {path:'/admin/bookings',component:Bookings},
+  {path:'/staff/dashboard',component:StaffDashboard},
+  {path:'/staff/profile',component:StaffProfile},
+  // {path:'/staff/participants',component:StaffParticipants},
+  // {path:'/staff/trek',component:StaffTrek},
+  {path:'/admin/trek/edit',component:AdminTrekEdit},
   {path:'/logout', component:Logout}
 
 ]

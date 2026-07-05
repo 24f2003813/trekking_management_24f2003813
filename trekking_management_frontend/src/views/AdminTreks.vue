@@ -38,7 +38,7 @@
 
         <!-- Trek Cards -->
         <div class="row">
-          <div class="col-md-4 mb-3" v-for="trek in treks" :key="trek.id">
+          <div class="col-md-5 mb-3" v-for="trek in treks" :key="trek.id">
             <div class="card shadow-sm trek-card">
               <div class="card-body">
                 <h5 class="card-title">{{ trek.name }}</h5>
@@ -52,8 +52,8 @@
                   Guide: {{ guideName(trek.assigned_guide_id) || 'Not Assigned' }}
                 </p>
 
-                <!-- Status Change Dropdown -->
-                <div class="d-flex justify-content-between">
+                <!-- Status Change -->
+                <div class="d-flex justify-content-between mb-2">
                   <select v-model="trek.status" @change="updateTrekStatus(trek.id, trek.status)" class="form-select form-select-sm w-auto">
                     <option value="open">Open</option>
                     <option value="full">Full</option>
@@ -61,6 +61,19 @@
                     <option value="cancelled">Cancelled</option>
                   </select>
                   <button class="btn btn-danger btn-sm" @click="deleteTrek(trek.id)">Delete</button>
+                </div>
+
+                <!-- Guide Assignment -->
+                <div>
+                  <label class="form-label">Assign Guide</label>
+                  <select v-model="trek.assigned_guide_id"
+                          @change="assignGuide(trek.id, trek.assigned_guide_id)"
+                          class="form-select form-select-sm">
+                    <option disabled value="">Select Guide</option>
+                    <option v-for="guide in eligibleGuides" :key="guide.id" :value="guide.id">
+                      {{ guide.name }} ({{ guide.specialization }})
+                    </option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -84,7 +97,7 @@ export default {
   data() {
     return {
       treks: [],
-      staffs: [], // to map guide IDs to names
+      eligibleGuides: [],
       searchQuery: '',
       message: ''
     }
@@ -102,23 +115,40 @@ export default {
         this.message = error.response?.data?.error || "Failed to load treks"
       }
     },
-    async fetchStaff() {
+    async fetchEligibleGuides() {
       try {
         const token = localStorage.getItem('token')
-        const res = await axios.get('http://localhost:5000/api/admin/staff', {
+        const res = await axios.get('http://localhost:5000/api/admin/eligible_guides', {
           headers: { Authorization: `Bearer ${token}` }
         })
-        this.staffs = res.data
+        this.eligibleGuides = res.data
       } catch (error) {
-        console.error("Failed to load staff")
+        console.error("Failed to load eligible guides")
+      }
+    },
+    async assignGuide(trekId, guideId) {
+      try {
+        const token = localStorage.getItem('token')
+        const res = await axios.put(`http://localhost:5000/api/admin/treks/${trekId}/assign_guide`,
+          { guide_id: guideId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+        this.message = res.data.message
+        this.fetchTreks()
+      } catch (error) {
+        if (error.response?.status === 409) {
+          this.message = error.response.data.warning
+        } else {
+          this.message = error.response?.data?.error || "Failed to assign guide"
+        }
       }
     },
     guideName(id) {
-      const guide = this.staffs.find(s => s.id === id)
+      const guide = this.eligibleGuides.find(g => g.id === id)
       return guide ? guide.name : null
     },
     statusClass(status) {
-      switch(status) {
+      switch (status) {
         case 'open': return 'text-success'
         case 'full': return 'text-warning'
         case 'completed': return 'text-primary'
@@ -129,8 +159,8 @@ export default {
     async updateTrekStatus(id, status) {
       try {
         const token = localStorage.getItem('token')
-        const res = await axios.put(`http://localhost:5000/api/admin/treks/${id}`, 
-          { status }, 
+        const res = await axios.put(`http://localhost:5000/api/admin/treks/${id}`,
+          { status },
           { headers: { Authorization: `Bearer ${token}` } }
         )
         this.message = res.data.message
@@ -154,7 +184,7 @@ export default {
   },
   mounted() {
     this.fetchTreks()
-    this.fetchStaff() // load staff so guide names can be shown
+    this.fetchEligibleGuides()
   }
 }
 </script>
