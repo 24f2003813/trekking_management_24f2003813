@@ -51,7 +51,6 @@ if __name__ == "__main__":
             )
             db.session.add(admin)
             db.session.commit()
-    app.run(debug=True)
 
 @app.route('/api/auth/register',methods=['POST'])
 def register():
@@ -479,7 +478,8 @@ def listing_bookings():
             'user_id':booking.user_id,
             'user_name':booking.booking_user.name if booking.booking_user else None,
             'status':booking.status,
-            'created_at':booking.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            "payment_status":booking.payment_flag,
+            'booking_date':booking.booking_date.strftime("%Y-%m-%d %H:%M:%S")
         }
         for booking in bookings
     ]
@@ -490,14 +490,35 @@ def check_and_assign_badge(user_id):
     badges = Badge.query.all()
 
     for badge in badges:
-        # If user has enough treks for this badge
         if completed_trek_count >= badge.criteria_treks:
-            # Check if already earned
             existing = User_Badge.query.filter_by(user_id=user_id, badge_id=badge.id).first()
             if not existing:
                 new_badge = User_Badge(user_id=user_id, badge_id=badge.id)
                 db.session.add(new_badge)
     db.session.commit()
+
+@app.route('/api/user/badges', methods=['GET'])
+@jwt_required()
+def user_badges():
+    trekker_id = int(get_jwt_identity())
+    trekker = User.query.get(trekker_id)
+    if not trekker or trekker.role != 'trekker':
+        return jsonify({"error":"Unauthorized"}),403
+
+    completed_trek_count = Booking.query.filter_by(user_id=trekker.id, status="completed").count()
+    badges = Badge.query.all()
+
+    badge_progress = [
+        {
+            "id": badge.id,
+            "name": badge.name,
+            "description": badge.description,
+            "criteria": badge.criteria_treks,
+            "progress": min(completed_trek_count, badge.criteria_treks)  # capped at criteria
+        }
+        for badge in badges
+    ]
+    return jsonify(badge_progress),200
 
 @app.route('/api/admin/bookings/<int:booking_id>/status',methods=['PUT','DELETE'])
 @jwt_required()
@@ -541,7 +562,7 @@ def manage_booking(booking_id):
 def pay_booking(booking_id):
     user_id = int(get_jwt_identity())
     present_sessioner = User.query.get(user_id)
-    if present_sessioner.role != "admin":
+    if present_sessioner.role != "trekker":
         return jsonify({"error": "Sorry you cannot access this page"}), 403
     
     booking=Booking.query.get(booking_id)
@@ -567,8 +588,10 @@ def staff_dashboard():
     if present_sessioner.role != "staff":
         return jsonify({"error": "Sorry you cannot access this page"}), 403
 
+
     assigned_treks = Trek.query.filter_by(assigned_guide_id=present_sessioner.id).all()
     trek_count = len(assigned_treks)
+
 
     participant_total = sum(
         Booking.query.filter_by(trek_id=trek.id, status="booked").count()
@@ -585,11 +608,37 @@ def staff_dashboard():
                 "trek_id": trek.id,
                 "trek_name": trek.name,
                 "trek_status": trek.status,
-                "participant_count": Booking.query.filter_by(trek_id=trek.id, status="booked").count()
             }
             for trek in assigned_treks
         ]
     }), 200
+
+@app.route('/api/staff/trek', methods=['GET'])
+@jwt_required()
+def my_trek():
+    staff_id = int(get_jwt_identity())
+    staff = User.query.get(staff_id)
+
+    if not staff or staff.role != "staff":
+        return jsonify({"error": "Unauthorized"}), 403
+
+    trek = Trek.query.filter_by(assigned_guide_id=staff.id).first()
+
+    if not trek:
+        return jsonify({"error": "No trek assigned"}), 404
+
+    return jsonify({
+        "trek_id": trek.id,
+        "trek_name": trek.name,
+        "location": trek.location,
+        "trek_status": trek.status,
+        "participant_count": Booking.query.filter_by(
+            trek_id=trek.id,
+            status="booked"
+        ).count(),
+        "max_trekker": trek.max_trekker
+    }), 200
+
 
 @app.route('/api/staff/treks/<int:trek_id>/slots_capacity',methods=['PUT'])
 @jwt_required()
@@ -624,38 +673,81 @@ def update_status(trek_id):
         return jsonify({"error":"Trek not found or trek is not assigned to you"}),400
     
     data=request.get_json()
-    valid_status=['open','cancelled','full','completed']
+    valid_status=['open','completed','cancelled']
+    new_status=data.get("status")
     if data.get("status") not in valid_status:
         return jsonify({"error":"Please provide valid status"}),400
     
     trek.status=data['status']
-    db.session.commit()
-    return jsonify({"message":f"Status updated to '{trek.status}'"})
 
-@app.route('/api/staff/trek/<int:trek_id>/participants',methods=["GET"])
+    if new_status == 'completed':
+        for booking in trek.bookings:
+            if booking.status == 'booked':
+                booking.status = 'completed'
+
+    elif new_status == 'cancelled':
+        for booking in trek.bookings:
+            if booking.status in ['booked','completed']:
+                booking.status = 'cancelled'
+    db.session.commit()
+    return jsonify({"message":f"Status updated to '{trek.status}'"}),200
+
+@app.route('/api/staff/participants',methods=["GET"])
 @jwt_required()
-def trek_participants(trek_id):
+def trek_participants():
     staff_id=int(get_jwt_identity())
     staff=User.query.get(staff_id)
     if staff.role != 'staff':
         return jsonify({"error":"Sorry you cannot access the page"}),403
     
-    trek=Trek.query.get(trek_id)
-    if not trek or trek.assigned_guide_id != staff.id:
-        return jsonify({"error":"Trek not found or trek is not assigned to you"}),400
+    treks=Trek.query.filter_by(assigned_guide_id=staff.id).all()
+    if not treks:
+        return jsonify([]), 200
     
-    participants=Booking.query.filter_by(trek_id=trek.id,status='booked').all()
-    participants_list=[
-        {
-            "id":b.user_id,
-            "name":b.booking_user.name,
-            "email":b.booking_user.email,
-            "contact_number":b.booking_user.contact_number,
-            "trek":b.booking_trek.name
-        }
-        for b in participants
-    ]
+    participants_list=[]
+    for trek in treks:
+        participants=Booking.query.filter_by(trek_id=trek.id,status='booked').all()
+        for b in participants:
+            participants_list.append(
+                {
+                    "id":b.user_id,
+                    "name":b.booking_user.name,
+                    "email":b.booking_user.email,
+                    "contact_number":b.booking_user.contact_number,
+                    "trek":b.booking_trek.name
+                })
     return jsonify(participants_list),200
+
+@app.route('/api/staff/profile', methods=['GET', 'PUT'])
+@jwt_required()
+def staff_profile():
+    staff_id = int(get_jwt_identity())
+    staff = User.query.get(staff_id)
+
+    if not staff or staff.role != 'staff':
+        return jsonify({"error": "Sorry you cannot access this page"}), 403
+
+    if request.method == 'GET':
+        return jsonify({
+            "name": staff.name,
+            "email": staff.email,
+            "contact_number": staff.contact_number,
+            "experience":staff.experience
+        }), 200
+
+    if request.method == 'PUT':
+        data = request.get_json()
+
+        if "name" in data:
+            staff.name = data["name"]
+        if "contact_number" in data:
+            staff.contact_number = data["contact_number"]
+        if "experience" in data:
+            staff.experience = data["experience"]
+
+        db.session.commit()
+        return jsonify({"message": "Profile updated successfully"}), 200
+
 
 @app.route('/api/user/dashboard',methods=["GET"])
 @jwt_required()
@@ -675,13 +767,13 @@ def user_dashboard():
         trek_separation=trek_separation.filter(Trek.location.ilike(f"%{location_search}%"))
     if difficulty_search:
         trek_separation=trek_separation.filter(Trek.difficulty.ilike(f"%{difficulty_search}%"))
+    treks=trek_separation.all()
     
     available_trek=[]
-    treks=Trek.query.filter_by(status='open').all()
     for trek in treks:
-        booked_slot_count=Booking.query.filter_by(trek_id=trek.id,status='booked').count()
-        slots_available=trek.max_trekker - booked_slot_count
-        if slots_available>0:
+        booked_slot_count = Booking.query.filter_by(trek_id=trek.id, status='booked').count()
+        slots_available = trek.max_trekker - booked_slot_count
+        if slots_available > 0:
             available_trek.append({
                 "id": trek.id,
                 "name": trek.name,
@@ -699,27 +791,44 @@ def user_dashboard():
             "trek_id":b.trek_id,
             "trek_name":b.booking_trek.name,
             "status":b.status,
-            "booking_date":b.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            "booking_date":b.booking_date.strftime("%Y-%m-%d %H:%M:%S")
         }
         for b in bookings if b.status=='booked'
     ]
 
+    return jsonify({
+        "available_treks": available_trek,
+        "booked_treks": booked_trek
+        
+    }),200
+
+@app.route('/api/user/history',methods=['GET'])
+@jwt_required()
+def trekker_history():
+    trekker_id = int(get_jwt_identity())
+    trekker = User.query.get(trekker_id)
+    if not trekker or trekker.role != 'trekker':
+        return jsonify({"error":"Unauthorized"}),403
+
+    bookings = Booking.query.filter_by(user_id=trekker.id).all()
     history=[
         {
             "booking_id": b.id,
             "trek_id": b.trek_id,
             "trek_name": b.booking_trek.name if b.booking_trek else None,
             "status": b.status,
-            "booking_date": b.booking_date.strftime("%Y-%m-%d %H:%M:%S")
+            "booking_date": b.booking_date.strftime("%Y-%m-%d %H:%M:%S"),
+            "trek_date": (
+                f"{b.booking_trek.start_date.strftime('%d-%m-%Y')} to "
+                f"{b.booking_trek.end_date.strftime('%d-%m-%Y')}"
+                if b.booking_trek and b.booking_trek.start_date and b.booking_trek.end_date
+                else None
+            )
 
         }
         for b in bookings if b.status in ['completed','cancelled']
     ]
-    return jsonify({
-        "available_treks": available_trek,
-        "booked_treks": booked_trek,
-        "history": history
-    }),200
+    return jsonify(history),200
 
 @app.route('/api/user/booking_cancel/<int:booking_id>',methods=['PUT'])
 @jwt_required()
@@ -747,7 +856,7 @@ def edit_profile():
     trekker_id=int(get_jwt_identity())
     trekker=User.query.get(trekker_id)
 
-    if not trekker or trekker.role != 'role':
+    if not trekker or trekker.role != 'trekker':
         return jsonify({"error":"Sorry you cannot access this page"}),403
     
     if request.method == 'GET':
@@ -773,18 +882,15 @@ def edit_profile():
             "notification":f"Trekker '{trekker.name}' profile updated"
         }),200
     
-@app.route('/api/user/bookings', methods=['POST'])
+@app.route('/api/trekker/treks/<int:trek_id>/book', methods=['POST'])
 @jwt_required()
-def book_trek():
+def trekker_book_trek(trek_id):
     trekker_id = int(get_jwt_identity())
     trekker = User.query.get(trekker_id)
     if not trekker or trekker.role != 'trekker':
         return jsonify({"error":"Unauthorized"}),403
 
-    data = request.get_json()
-    trek_id = data.get("trek_id")
     trek = Trek.query.get(trek_id)
-
     if not trek or trek.status != "open":
         return jsonify({"error":"Trek not available for booking"}),400
 
@@ -809,5 +915,50 @@ def book_trek():
 
     return jsonify({
         "message":"Trek booked successfully",
+        "booking_id":new_booking.id,
         "notification":f"Trek '{trek.name}' booked by {trekker.name}"
     }),201
+
+@app.route('/api/trekker/treks', methods=['GET'])
+@jwt_required()
+def list_open_treks():
+    trekker_id = int(get_jwt_identity())
+    trekker = User.query.get(trekker_id)
+    if not trekker or trekker.role != 'trekker':
+        return jsonify({"error":"Unauthorized"}),403
+
+    treks = Trek.query.filter_by(status='open').all()
+    data = [
+        {
+            "id": t.id,
+            "name": t.name,
+            "location": t.location,
+            "difficulty": t.difficulty,
+            "price": t.price,
+            "start_date": t.start_date.strftime("%d-%m-%Y"),
+            "end_date": t.end_date.strftime("%d-%m-%Y"),
+            "slots_available": t.slots_available
+        }
+        for t in treks
+    ]
+    return jsonify(data),200
+
+@app.route('/api/trekker/treks/<int:trek_id>', methods=['GET'])
+@jwt_required()
+def trek_details(trek_id):
+    trek = Trek.query.get(trek_id)
+    if not trek or trek.status != 'open':
+        return jsonify({"error":"Trek not available"}),404
+
+    return jsonify({
+        "id": trek.id,
+        "name": trek.name,
+        "location": trek.location,
+        "description": trek.description,
+        "difficulty": trek.difficulty,
+        "price": trek.price,
+        "start_date": trek.start_date.strftime("%d-%m-%Y"),
+        "end_date": trek.end_date.strftime("%d-%m-%Y"),
+        "slots_available": trek.slots_available
+    }),200
+

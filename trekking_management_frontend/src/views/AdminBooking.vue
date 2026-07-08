@@ -25,23 +25,21 @@
         </ul>
       </div>
 
-      <!-- Content -->
       <div class="content flex-grow-1 p-4">
         <h2 class="mb-4" style="color:#8B5E3C;">Manage Bookings</h2>
 
-        <!-- Search -->
         <div class="input-group mb-3">
           <input type="text" class="form-control" placeholder="Search booking..." v-model="searchQuery">
           <button class="btn btn-brown" @click="fetchBookings">Search</button>
         </div>
 
-        <!-- Booking List -->
         <table class="table table-striped table-bordered">
           <thead class="table-light">
             <tr>
               <th>ID</th>
               <th>Trek</th>
               <th>Trekker</th>
+              <th>Payment_Status</th>
               <th>Status</th>
               <th>Created At</th>
               <th class="text-end">Actions</th>
@@ -53,11 +51,16 @@
               <td>{{ booking.trek_name }}</td>
               <td>{{ booking.user_name }}</td>
               <td>
+                <span :class="paymentClass(booking.payment_flag)" class="badge">
+                  {{ booking.payment_flag || 'pending' }}
+                </span>
+              </td>
+              <td>
                 <span :class="statusClass(booking.status)" class="badge">
                   {{ booking.status }}
                 </span>
               </td>
-              <td>{{ booking.created_at }}</td>
+              <td>{{ booking.booking_date }}</td>
               <td class="text-end">
                 <select v-model="booking.status" @change="updateBookingStatus(booking.id, booking.status)" class="form-select form-select-sm w-auto d-inline-block me-2">
                   <option value="completed">Completed</option>
@@ -69,7 +72,6 @@
           </tbody>
         </table>
 
-        <!-- Message -->
         <div v-if="message" class="alert alert-info mt-3 text-center">
           {{ message }}
         </div>

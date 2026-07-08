@@ -16,8 +16,15 @@ import Logout from '../views/Logout.vue'
 import StaffDashboard from '../views/StaffDashboard.vue'
 import StaffProfile from '../views/StaffProfile.vue'
 import AdminTrekEdit from '../views/AdminTrekEdit.vue'
-// import StaffParticipants from '../views/StaffParticipants.vue'
-// import StaffTrek from '../views/StaffTrek.vue'
+import StaffTrek from '../views/StaffTrek.vue'
+import StaffParticipants from '../views/StaffParticipants.vue'
+import TrekkerDashboard from '../views/TrekkerDashboard.vue'
+import TrekkerHistory from '../views/TrekkerHistory.vue'
+import TrekkerProfile from '../views/TrekkerProfile.vue'
+import TrekkerTrek from '../views/TrekkerTrek.vue'
+import TrekDetails from '../views/TrekDetails.vue'
+import TrekkerBadge from '../views/TrekkerBadge.vue'
+
 
 const routes =[
   {path: '/', component:LandingView},
@@ -33,9 +40,15 @@ const routes =[
   {path:'/admin/bookings',component:Bookings},
   {path:'/staff/dashboard',component:StaffDashboard},
   {path:'/staff/profile',component:StaffProfile},
-  // {path:'/staff/participants',component:StaffParticipants},
-  // {path:'/staff/trek',component:StaffTrek},
+  {path:'/staff/participants',component:StaffParticipants},
   {path:'/admin/trek/edit',component:AdminTrekEdit},
+  {path:'/staff/treks/:id',component:StaffTrek},
+  {path:'/trekker/dashboard',component:TrekkerDashboard},
+  {path:'/trekker/history',component:TrekkerHistory},
+  {path:'/trekker/profile',component:TrekkerProfile},
+  {path:'/trekker/trek',component:TrekkerTrek},
+  {path:'/trek/details/:id',component:TrekDetails},
+  {path:'/trekker/badge',component:TrekkerBadge},
   {path:'/logout', component:Logout}
 
 ]
