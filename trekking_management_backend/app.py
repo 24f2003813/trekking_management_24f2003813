@@ -5,9 +5,10 @@ from werkzeug.security import generate_password_hash,check_password_hash
 import config
 from models import db,User,Trek,Booking,Badge,User_Badge
 from datetime import datetime
+from flask_caching import Cache
 
 app=Flask(__name__)
-CORS(app)
+
 
 app.config['SECRET_KEY']=config.SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI']=config.SQLALCHEMY_DATABASE_URI
@@ -15,10 +16,13 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS']=config.SQLALCHEMY_TRACK_MODIFICATIO
 app.config['JWT_SECRET_KEY'] = config.JWT_SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = config.JWT_ACCESS_TOKEN_EXPIRES
 app.config['DEBUG'] = config.DEBUG
+app.config['CACHE_TYPE']='RedisCache'
+app.config['CACHE_REDIS_URL']='redis://localhost:6379/0'
 
+CORS(app)
 db.init_app(app)
-
 jwt=JWTManager(app)
+cache=Cache(app)
 
 
 if __name__ == "__main__":
@@ -51,6 +55,7 @@ if __name__ == "__main__":
             )
             db.session.add(admin)
             db.session.commit()
+    app.run(debug=True)
 
 @app.route('/api/auth/register',methods=['POST'])
 def register():
@@ -497,29 +502,6 @@ def check_and_assign_badge(user_id):
                 db.session.add(new_badge)
     db.session.commit()
 
-@app.route('/api/user/badges', methods=['GET'])
-@jwt_required()
-def user_badges():
-    trekker_id = int(get_jwt_identity())
-    trekker = User.query.get(trekker_id)
-    if not trekker or trekker.role != 'trekker':
-        return jsonify({"error":"Unauthorized"}),403
-
-    completed_trek_count = Booking.query.filter_by(user_id=trekker.id, status="completed").count()
-    badges = Badge.query.all()
-
-    badge_progress = [
-        {
-            "id": badge.id,
-            "name": badge.name,
-            "description": badge.description,
-            "criteria": badge.criteria_treks,
-            "progress": min(completed_trek_count, badge.criteria_treks)  # capped at criteria
-        }
-        for badge in badges
-    ]
-    return jsonify(badge_progress),200
-
 @app.route('/api/admin/bookings/<int:booking_id>/status',methods=['PUT','DELETE'])
 @jwt_required()
 def manage_booking(booking_id):
@@ -556,28 +538,6 @@ def manage_booking(booking_id):
             "message": "Booking deleted successfully",
             "notification": f"Booking {booking.id} removed."
         }), 200
-
-@app.route('/api/bookings/<int:booking_id>/pay',methods=['PUT'])
-@jwt_required()
-def pay_booking(booking_id):
-    user_id = int(get_jwt_identity())
-    present_sessioner = User.query.get(user_id)
-    if present_sessioner.role != "trekker":
-        return jsonify({"error": "Sorry you cannot access this page"}), 403
-    
-    booking=Booking.query.get(booking_id)
-    if not booking or booking.user_id != present_sessioner.id:
-        return jsonify({"error":"Booking not found"}),404
-    
-    data=request.get_json()
-    if 'payment_flag' not in data or data["payment_flag"] not in ["paid","failed"]:
-        return jsonify({"error":"Payment flag must be 'paid' or 'failed'"}),400
-    
-    booking.payment_flag = data["payment_flag"]
-    db.session.commit()
-
-    return jsonify({"message":"Payment status updated",
-                    "notification":f"Booking {booking.id} marked as {booking.payment_flag}."}),200
 
 
 @app.route('/api/staff/dashboard', methods=['GET'])
@@ -850,6 +810,28 @@ def cancel_booking(booking_id):
     return jsonify({"message":"Booking cancelled sucessfully",
                     "notification":f"Booking {booking.booking_trek.name} cancelled sucessfully"}),200
 
+@app.route('/api/bookings/<int:booking_id>/pay',methods=['PUT'])
+@jwt_required()
+def pay_booking(booking_id):
+    user_id = int(get_jwt_identity())
+    present_sessioner = User.query.get(user_id)
+    if present_sessioner.role != "trekker":
+        return jsonify({"error": "Sorry you cannot access this page"}), 403
+    
+    booking=Booking.query.get(booking_id)
+    if not booking or booking.user_id != present_sessioner.id:
+        return jsonify({"error":"Booking not found"}),404
+    
+    data=request.get_json()
+    if 'payment_flag' not in data or data["payment_flag"] not in ["paid","failed"]:
+        return jsonify({"error":"Payment flag must be 'paid' or 'failed'"}),400
+    
+    booking.payment_flag = data["payment_flag"]
+    db.session.commit()
+
+    return jsonify({"message":"Payment status updated",
+                    "notification":f"Booking {booking.id} marked as {booking.payment_flag}."}),200
+
 @app.route('/api/user/edit_profile',methods=['GET','PUT'])
 @jwt_required()
 def edit_profile():
@@ -908,7 +890,9 @@ def trekker_book_trek(trek_id):
         user_id=trekker.id,
         trek_id=trek.id,
         status="booked",
-        booking_date=datetime.now()
+        booking_date=datetime.now(),
+        payment_flat="pending"
+        
     )
     db.session.add(new_booking)
     db.session.commit()
@@ -962,3 +946,25 @@ def trek_details(trek_id):
         "slots_available": trek.slots_available
     }),200
 
+@app.route('/api/user/badges', methods=['GET'])
+@jwt_required()
+def user_badges():
+    trekker_id = int(get_jwt_identity())
+    trekker = User.query.get(trekker_id)
+    if not trekker or trekker.role != 'trekker':
+        return jsonify({"error":"Unauthorized"}),403
+
+    completed_trek_count = Booking.query.filter_by(user_id=trekker.id, status="completed").count()
+    badges = Badge.query.all()
+
+    badge_progress = [
+        {
+            "id": badge.id,
+            "name": badge.name,
+            "description": badge.description,
+            "criteria": badge.criteria_treks,
+            "progress": min(completed_trek_count, badge.criteria_treks)  # capped at criteria
+        }
+        for badge in badges
+    ]
+    return jsonify(badge_progress),200

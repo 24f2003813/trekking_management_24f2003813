@@ -120,7 +120,7 @@ export default {
         const token = localStorage.getItem("token");
         const res = await axios.get("http://localhost:5000/api/user/dashboard", {
           headers: { Authorization: `Bearer ${token}` },
-          params: this.filters   // ✅ send filters to backend
+          params: this.filters 
         });
         this.availableTreks = res.data.available_treks;
         this.bookedTreks = res.data.booked_treks;

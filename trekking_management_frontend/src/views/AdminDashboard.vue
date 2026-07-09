@@ -57,7 +57,7 @@
                 <td>{{ b.trek_name }}</td>
                 <td>{{ b.user_name }}</td>
                 <td>{{ b.status }}</td>
-                <td>{{ b.payment_flag ? 'Paid' : 'Pending' }}</td>
+                <td>{{ b.payment_flag }}</td>
                 <td>{{ b.booking_date }}</td>
               </tr>
             </tbody>

@@ -14,7 +14,6 @@
     </nav>
 
     <div class="d-flex">
-      <!-- Sidebar -->
       <div class="sidebar bg-light p-3">
         <ul class="nav flex-column">
           <li class="nav-item"><router-link to="/admin/dashboard" class="nav-link">Dashboard</router-link></li>
@@ -51,8 +50,8 @@
               <td>{{ booking.trek_name }}</td>
               <td>{{ booking.user_name }}</td>
               <td>
-                <span :class="paymentClass(booking.payment_flag)" class="badge">
-                  {{ booking.payment_flag || 'pending' }}
+                <span :class="paymentClass(booking.payment_status)" class="badge">
+                  {{ booking.payment_status || 'pending' }}
                 </span>
               </td>
               <td>
@@ -135,6 +134,14 @@ export default {
         case 'completed': return 'bg-success'
         case 'cancelled': return 'bg-danger'
         default: return 'bg-secondary'
+      }
+    },
+    paymentClass(flag) {
+      switch(flag) {
+        case 'paid': return 'bg-success';
+        case 'failed': return 'bg-danger';
+        case 'pending': return 'bg-secondary';
+        default: return 'bg-secondary';
       }
     }
   },
