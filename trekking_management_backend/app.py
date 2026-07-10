@@ -891,7 +891,7 @@ def trekker_book_trek(trek_id):
         trek_id=trek.id,
         status="booked",
         booking_date=datetime.now(),
-        payment_flat="pending"
+        payment_flag="pending"
         
     )
     db.session.add(new_booking)
@@ -968,3 +968,4 @@ def user_badges():
         for badge in badges
     ]
     return jsonify(badge_progress),200
+

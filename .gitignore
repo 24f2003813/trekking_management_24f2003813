@@ -45,3 +45,8 @@ env/
 venv/
 *.tar.gz
 .vscode/
+
+
+dump.rdb
+
+celerybeat-schedule
