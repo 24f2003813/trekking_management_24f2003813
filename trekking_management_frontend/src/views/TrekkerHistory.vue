@@ -15,7 +15,6 @@
     </nav>
 
     <div class="d-flex">
-      <!-- Sidebar -->
       <div class="sidebar bg-light p-3">
         <ul class="nav flex-column">
           <li class="nav-item"><router-link to="/trekker/dashboard" class="nav-link">Dashboard</router-link></li>
@@ -56,6 +55,12 @@
             </tr>
           </tbody>
         </table>
+        <div>
+          <button @click="exportHistory" class="export-btn">Export History</button>
+          <div
+            v-if="message" class="alert alert-info mt-2">{{ message }}
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -69,7 +74,8 @@ export default {
   data() {
     return {
       trekkerName: "",
-      history: []
+      history: [],
+      message: ""
     };
   },
   async mounted() {
@@ -78,8 +84,10 @@ export default {
       const res = await axios.get("http://localhost:5000/api/user/history", {
         headers: { Authorization: `Bearer ${token}` }
       });
-      this.history = res.data;
-      this.trekkerName = localStorage.getItem("trekkerName") || "Trekker";
+      this.history=res.data.history;
+      this.trekkerName = res.data.name  ;
+      console.log("History API response:", res.data);
+
     } catch (err) {
       alert(err.response?.data?.error || "Failed to load history");
     }
@@ -94,14 +102,46 @@ export default {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       alert(res.data.message);
-      this.loadHistory(); // reload after payment
+      this.loadHistory(); 
     } catch (err) {
       alert(err.response?.data?.error || "Payment failed");
     }
+  },
+  async loadHistory() {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(
+        "http://localhost:5000/api/user/history",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      this.history = res.data;
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to load history");
+    }
+  },
+  async exportHistory() {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post("http://localhost:5000/api/export-history", 
+      {}, 
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+      this.message = res.data.message || "Your export is being prepared. Check your email soon!";
+    } catch (err) {
+      console.error(err);
+
+      this.message=err.response?.data?.error || "Unable to export.";
+  }
   }
 }
-
 };
+
 </script>
 
 <style scoped>
@@ -113,12 +153,22 @@ export default {
   border-right: 1px solid #ddd;
 }
 .sidebar .nav-link {
-  color: #8B5E3C; /* brown theme */
+  color: #8B5E3C; 
   font-weight: 500;
   margin-bottom: 10px;
 }
 .sidebar .nav-link:hover {
-  background-color: #F3E5AB; /* light beige hover */
+  background-color: #F3E5AB; 
   border-radius: 5px;
+}
+.export-btn {
+  background-color: #F3E5AB; 
+  color: #8B5E3C;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
 }
 </style>

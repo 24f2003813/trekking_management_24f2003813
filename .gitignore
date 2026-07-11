@@ -50,3 +50,6 @@ venv/
 dump.rdb
 
 celerybeat-schedule
+
+backend/exports/*
+!backend/exports/.gitkeep

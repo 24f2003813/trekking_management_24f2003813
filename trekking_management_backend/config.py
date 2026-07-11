@@ -10,3 +10,10 @@ JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key-change-in-p
 JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
 
 DEBUG=True
+
+CACHE_TYPE = 'RedisCache'
+CACHE_REDIS_URL = 'redis://localhost:6379/0'
+
+CELERY_BROKER_URL = 'redis://localhost:6379/1'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/2'
+

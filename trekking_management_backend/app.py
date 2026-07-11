@@ -1,9 +1,11 @@
+from extensions import app, db, jwt, cache
+from tasks import export_booking_history
 from flask import Flask,jsonify,request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager,create_access_token,jwt_required,get_jwt_identity
 from werkzeug.security import generate_password_hash,check_password_hash
 import config
-from models import db,User,Trek,Booking,Badge,User_Badge
+from models import User,Trek,Booking,Badge,User_Badge
 from datetime import datetime
 from flask_caching import Cache
 
@@ -103,6 +105,15 @@ def login():
         "role":present_loginer.role,
         "notification": f"Logged In {present_loginer.name}!! Welcome back TrailBuddy"
     }),200
+
+@app.route("/api/export-history", methods=["POST"])
+@jwt_required()
+def export_history():
+    user_id = get_jwt_identity()
+    from models import User
+    user = User.query.get(user_id)
+    export_booking_history.delay(user.id, user.email)
+    return jsonify({"message": "Export started. You will receive an email once it's ready."}), 202
 
 @app.route('/api/admin/dashboard',methods=['GET'])
 @jwt_required()
@@ -231,6 +242,11 @@ def update_delete_trek(trek_id):
         valid_statuses = ["open", "full", "completed", "cancelled"]
         if data.get('status') in valid_statuses:
             trek.status = data['status']
+
+            if trek.status in ["completed", "cancelled"]:
+                bookings = Booking.query.filter_by(trek_id=trek.id).all()
+                for b in bookings:
+                    b.status = trek.status
 
         if 'assigned_guide_id' in data:
             staff=User.query.filter_by(id=data['assigned_guide_id'],role='staff').first()
@@ -783,12 +799,15 @@ def trekker_history():
                 f"{b.booking_trek.end_date.strftime('%d-%m-%Y')}"
                 if b.booking_trek and b.booking_trek.start_date and b.booking_trek.end_date
                 else None
-            )
+            ),
+            "payment_flag":b.payment_flag
 
         }
         for b in bookings if b.status in ['completed','cancelled']
     ]
-    return jsonify(history),200
+    return jsonify({
+        "name":trekker.name,
+        "history":history}),200
 
 @app.route('/api/user/booking_cancel/<int:booking_id>',methods=['PUT'])
 @jwt_required()

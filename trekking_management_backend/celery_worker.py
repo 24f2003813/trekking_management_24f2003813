@@ -1,16 +1,20 @@
-from celery import Celery,Task
+from extensions import celery
 from celery.schedules import crontab
-from app import app
+from celery import Celery
 
-celery_app=Celery('task',broker='redis://localhost:6379/1', backend='redis://localhost:6379/2' , include=['tasks'])
 
-celery_app.conf.beat_schedule = {
+celery.conf.beat_schedule = {
     'send-daily-reminder':{
         'task':'tasks.send_daily_reminders',
         'schedule': crontab(hour=0,minute=0),
     },
     'mark-completed-treks': {
         'task': 'tasks.mark_completed_treks',
-        'schedule': crontab(hour=0,minute=0), 
+        'schedule': crontab(minute='*'), 
+    },
+    "send-monthly-report": {
+        "task": "tasks.send_monthly_report",
+        "schedule": crontab(minute='*'),
     },
 }
+# hour=0, minute=0, day_of_month=1
