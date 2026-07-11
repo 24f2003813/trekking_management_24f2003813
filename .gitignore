@@ -51,5 +51,5 @@ dump.rdb
 
 celerybeat-schedule
 
-backend/exports/*
-!backend/exports/.gitkeep
+trekking_management_backend/exports/*
+!trekking_management_backend/exports/.gitkeep
