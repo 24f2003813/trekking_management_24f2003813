@@ -107,10 +107,10 @@ export default {
   content: "";
   position: absolute;
   inset: 0;
-  background-color: rgba(139, 94, 60, 0.6); /* brown overlay */
+  background-color: rgba(139, 94, 60, 0.6); 
 }
 .form-card {
-  background-color: #F5F5DC; /* beige */
+  background-color: #F5F5DC; 
   border-radius: 10px;
   z-index: 1;
   width: 400px;

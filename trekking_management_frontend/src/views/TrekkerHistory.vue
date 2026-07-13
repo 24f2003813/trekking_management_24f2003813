@@ -1,6 +1,5 @@
 <template>
   <div class="trekker-history">
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg" style="background-color:#8B5E3C;">
       <div class="container-fluid">
         <span class="navbar-brand text-light fw-bold">Welcome, {{ trekkerName }}!</span>

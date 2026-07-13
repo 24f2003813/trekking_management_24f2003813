@@ -1,6 +1,5 @@
 <template>
   <div class="admin-dashboard">
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg" style="background-color:#8B5E3C;">
       <div class="container-fluid">
         <span class="navbar-brand text-light fw-bold">Admin Staff</span>
@@ -15,7 +14,6 @@
     </nav>
 
     <div class="d-flex">
-      <!-- Sidebar -->
       <div class="sidebar bg-light p-3">
         <ul class="nav flex-column">
           <li class="nav-item"><router-link to="/admin/dashboard" class="nav-link">Dashboard</router-link></li>
@@ -26,17 +24,14 @@
         </ul>
       </div>
 
-      <!-- Content -->
       <div class="content flex-grow-1 p-4">
         <h2 class="mb-4" style="color:#8B5E3C;">Manage Staff</h2>
 
-        <!-- Search -->
         <div class="input-group mb-3">
           <input type="text" class="form-control" placeholder="Search staff member..." v-model="searchQuery">
           <button class="btn btn-brown" @click="fetchStaff">Search</button>
         </div>
 
-        <!-- Staff Table -->
         <table class="table table-striped table-bordered">
           <thead class="table-light">
             <tr>
@@ -80,7 +75,6 @@
           </tbody>
         </table>
 
-        <!-- Message -->
         <div v-if="message" class="alert alert-info mt-3 text-center">
           {{ message }}
         </div>

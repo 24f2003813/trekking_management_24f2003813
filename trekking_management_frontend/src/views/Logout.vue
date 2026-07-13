@@ -12,10 +12,8 @@
 export default {
   name: "Logout",
   mounted() {
-    // Clear token and any other session data
     localStorage.removeItem('token')
-    localStorage.removeItem('user') // if you store user info
-    // Optionally redirect after a short delay
+    localStorage.removeItem('user') 
     setTimeout(() => {
       this.$router.push('/')
     }, 1500)

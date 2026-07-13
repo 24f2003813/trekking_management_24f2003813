@@ -1,6 +1,5 @@
 <template>
   <div class="admin-dashboard">
-    <!-- Navbar + Sidebar (same as other admin views) -->
     <nav class="navbar navbar-expand-lg" style="background-color:#8B5E3C;">
       <div class="container-fluid">
         <span class="navbar-brand text-light fw-bold">Admin Dashboard</span>
@@ -22,7 +21,6 @@
         </ul>
       </div>
 
-      <!-- Add Trek Form -->
       <div class="content flex-grow-1 p-4">
         <h2 class="mb-4" style="color:#8B5E3C;">Add New Trek</h2>
         <form @submit.prevent="addTrek" class="card p-4 shadow-sm form-card">
@@ -39,7 +37,6 @@
           <div class="mb-3"><label class="form-label">Slots Available</label><input type="number" v-model="trek.slots_available" class="form-control"></div>
           <div class="mb-3"><label class="form-label">Start Date</label><input type="date" v-model="trek.start_date" class="form-control"></div>
           <div class="mb-3"><label class="form-label">End Date</label><input type="date" v-model="trek.end_date" class="form-control"></div>
-          <!-- Eligible guides dropdown -->
           <div class="mb-3"><label class="form-label">Assign Guide</label>
             <select v-model="trek.assigned_guide_id" class="form-select">
               <option v-for="guide in eligibleGuides" :key="guide.id" :value="guide.id">

@@ -1,6 +1,5 @@
 <template>
   <div class="admin-trek-edit">
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg" style="background-color:#8B5E3C;">
       <div class="container-fluid">
         <span class="navbar-brand text-light fw-bold">Edit Trek</span>
@@ -18,7 +17,6 @@
     </nav>
 
     <div class="d-flex">
-      <!-- Sidebar -->
       <div class="sidebar bg-light p-3">
         <ul class="nav flex-column">
           <li class="nav-item"><router-link to="/admin/dashboard" class="nav-link">Dashboard</router-link></li>
@@ -28,7 +26,6 @@
         </ul>
       </div>
 
-      <!-- Content -->
       <div class="content flex-grow-1 p-4">
         <h3 class="mb-4">Edit Trek Details</h3>
         <form @submit.prevent="updateTrek" class="w-50">
@@ -86,7 +83,6 @@ export default {
       const token = localStorage.getItem("token");
       const trekId = this.$route.params.id;
 
-      // ✅ Fetch trek details
       const res = await axios.get(`http://localhost:5000/api/admin/treks/${trekId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });

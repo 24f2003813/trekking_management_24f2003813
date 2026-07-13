@@ -1,6 +1,5 @@
 <template>
   <div class="staff-dashboard">
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg" style="background-color:#8B5E3C;">
       <div class="container-fluid">
         <span class="navbar-brand text-light fw-bold">Staff Dashboard</span>
@@ -21,10 +20,8 @@
           <li class="nav-item"><router-link to="/staff/dashboard" class="nav-link">Dashboard</router-link></li>
           <li class="nav-item"><router-link to="/staff/profile" class="nav-link"> Edit Profile</router-link></li>
           <li class="nav-item"><router-link to="/staff/participants" class="nav-link">Participants</router-link></li>
-          <li class="nav-item"><router-link to="/staff/trek/:id" class="nav-link">My Trek</router-link></li>
         </ul>
       </div>
-
 
       <div class="content flex-grow-1 p-4">
         <div class="row g-4">
@@ -37,7 +34,6 @@
             </div>
           </div>
         </div>
-
 
         <div class="mt-5">
           <h4 class="mb-3">Assigned Treks</h4>
@@ -136,7 +132,6 @@ export default {
   background-color: #F5F5DC;
   border-radius: 5px;
 }
-
 
 .summary-card {
   background-color: #F5F5DC;

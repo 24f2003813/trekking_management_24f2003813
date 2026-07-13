@@ -11,7 +11,6 @@ from flask_caching import Cache
 
 app=Flask(__name__)
 
-
 app.config['SECRET_KEY']=config.SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI']=config.SQLALCHEMY_DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS']=config.SQLALCHEMY_TRACK_MODIFICATIONS
@@ -185,8 +184,9 @@ def map_and_add_trek():
              'start_date': trek.start_date.isoformat(),
              'end_date': trek.end_date.isoformat(),
              'max_trekker': trek.max_trekker,
-             'assigned_guide_id': trek.assigned_guide_id}
-
+             'assigned_guide_id': trek.assigned_guide_id,
+             'assigned_guide_name': User.query.get(trek.assigned_guide_id).name if trek.assigned_guide_id else None }
+ 
             for trek in treks
         ]
         return jsonify(treks_mapping),200
@@ -279,7 +279,7 @@ def eligibility_check():
 
     for staff in staff_members:
         active_treks_count=Trek.query.filter(Trek.assigned_guide_id == staff.id,
-            Trek.status.in_(["open","completed"])  # active status
+            Trek.status == 'open'
         ).count()
 
         if active_treks_count <3:
@@ -316,11 +316,12 @@ def assign_guide(trek_id):
     
     active_trek_count=Trek.query.filter(
         Trek.assigned_guide_id == guide.id,
-        Trek.status.in_(['open','completed'])
+        Trek.status =='open'
     ).count()
 
-    if active_trek_count >=3 and not data.get('force'):
-        return jsonify({"error":f"Guide {guide.name} already has 3 active treks"})
+    if active_trek_count >= 3:
+        return jsonify({"warning": f"Guide {guide.name} already has 3 active treks"}), 409
+
     
     if trek.assigned_guide_id and trek.assigned_guide_id != guide.id and not data.get('force'):
         return jsonify({"warning":f"Trek '{trek.name}' already has a guide assigned (ID {trek.assigned_guide_id})."}),409
@@ -435,7 +436,7 @@ def all_users():
     if search_query:
         query=query.filter(User.name.ilike(f"%{search_query}%"))
 
-    users=User.query.filter_by(role='trekker').all()
+    users=query.all()
     trekker_list=[
         {'id':trekker.id,'name':trekker.name,'email':trekker.email,'contact_number':trekker.contact_number,'status':trekker.status}
         for trekker in users
@@ -490,7 +491,18 @@ def listing_bookings():
     if present_sessioner.role != "admin":
         return jsonify({"error": "Sorry you cannot access this page"}), 403
     
-    bookings=Booking.query.all()
+    search = request.args.get('search')
+    query=Booking.query
+    if search :
+        query=query.join(User,Booking.user_id == User.id)\
+        .join(Trek,Booking.trek_id == Trek.id)\
+        .filter(
+            (User.name.ilike(f"%{search}%")) |
+            (Trek.name.ilike(f"%{search}%"))|
+            (Booking.status.ilike(f"%{search}%")) |
+            (Booking.payment_flag.ilike(f"%{search}%"))
+        )
+    bookings=query.all()
     listing=[
         {
             'id':booking.id,
@@ -567,8 +579,6 @@ def staff_dashboard():
 
     assigned_treks = Trek.query.filter_by(assigned_guide_id=present_sessioner.id).all()
     trek_count = len(assigned_treks)
-
-
     participant_total = sum(
         Booking.query.filter_by(trek_id=trek.id, status="booked").count()
         for trek in assigned_treks
@@ -612,7 +622,10 @@ def my_trek():
             trek_id=trek.id,
             status="booked"
         ).count(),
-        "max_trekker": trek.max_trekker
+        "max_trekker": trek.max_trekker,
+        "start_date": trek.start_date.strftime("%Y-%m-%d") if trek.start_date else None,
+        "end_date": trek.end_date.strftime("%Y-%m-%d") if trek.end_date else None,
+        "description": trek.description
     }), 200
 
 
@@ -627,6 +640,9 @@ def update_trek_slots(trek_id):
     trek=Trek.query.get(trek_id)
     if not trek or trek.assigned_guide_id != staff.id:
         return jsonify({"error":"Trek not found or this trek is not assigned to you"}),404
+    
+    if trek.status == 'completed':
+        return jsonify({"error": "Cannot update capacity for a completed trek"}), 400
     
     data=request.get_json()
     if not data.get("max_trekker"):
@@ -648,6 +664,9 @@ def update_status(trek_id):
     if not trek or trek.assigned_guide_id != staff.id:
         return jsonify({"error":"Trek not found or trek is not assigned to you"}),400
     
+    if trek.status == 'completed':
+        return jsonify({"error": "Cannot change status of a completed trek"}), 400
+
     data=request.get_json()
     valid_status=['open','completed','cancelled']
     new_status=data.get("status")
@@ -767,7 +786,8 @@ def user_dashboard():
             "trek_id":b.trek_id,
             "trek_name":b.booking_trek.name,
             "status":b.status,
-            "booking_date":b.booking_date.strftime("%Y-%m-%d %H:%M:%S")
+            "booking_date":b.booking_date.strftime("%Y-%m-%d %H:%M:%S"),
+            "payment_flag": b.payment_flag
         }
         for b in bookings if b.status=='booked'
     ]
@@ -987,4 +1007,3 @@ def user_badges():
         for badge in badges
     ]
     return jsonify(badge_progress),200
-

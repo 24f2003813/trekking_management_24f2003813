@@ -1,6 +1,5 @@
 <template>
   <div>
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg" style="background-color:#8B5E3C;">
       <div class="container-fluid">
         <a class="navbar-brand text-light fw-bold" >Trekking Buddy</a>
@@ -56,10 +55,9 @@
       </div>
     </section>
 
-    <!-- Footer -->
     <footer class="text-center py-3" style="background-color:#8B5E3C; color:#F5F5DC;">
       <strong>Trekking Management System</strong>
-      <p>Contact Us:TrekkingBuddy@gmail.com</p>
+      <p>Contact Us:trekkingbuddy744@gmail.com</p>
     </footer>
   </div>
 </template>

@@ -1,6 +1,5 @@
 <template>
   <div class="dashboard">
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-brown">
       <div class="container-fluid">
         <a class="navbar-brand" href="#">Trekking Management</a>
@@ -8,7 +7,6 @@
     </nav>
 
     <div class="main d-flex">
-      <!-- Sidebar -->
       <aside class="sidebar bg-light p-3">
         <ul class="nav flex-column">
           <li class="nav-item">
@@ -23,7 +21,6 @@
         </ul>
       </aside>
 
-      <!-- Content -->
       <div class="content container mt-4">
         <h2 style="color:#8B5E3C;">Add New Staff Member</h2>
 

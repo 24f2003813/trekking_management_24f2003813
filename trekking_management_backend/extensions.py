@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_caching import Cache
 from celery import Celery
+from celery.schedules import crontab
 import config
 
 app = Flask(__name__)
@@ -19,4 +20,24 @@ celery = Celery(
     include=["tasks"]
 )
 
-celery.conf.update(app.config)
+celery.conf.update(
+    broker_url=app.config["CELERY_BROKER_URL"],
+    result_backend=app.config["CELERY_RESULT_BACKEND"],
+)
+celery.conf.beat_schedule = {
+    "send-daily-reminder": {
+        "task": "tasks.send_daily_reminders",
+        "schedule": crontab(hour=0, minute=0),
+    },
+    "mark-completed-treks": {
+        "task": "tasks.mark_completed_treks",
+        "schedule": crontab(minute="*"),
+    },
+    "send-monthly-report": {
+        "task": "tasks.send_monthly_report",
+        "schedule": crontab(minute="*"),
+    },
+}
+
+celery.conf.timezone = "Asia/Kolkata"
+celery.conf.enable_utc = False

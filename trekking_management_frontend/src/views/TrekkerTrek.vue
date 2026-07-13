@@ -1,6 +1,5 @@
 <template>
   <div class="trekker-treks">
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg" style="background-color:#8B5E3C;">
       <div class="container-fluid">
         <span class="navbar-brand text-light fw-bold">Welcome, {{ trekkerName }}!</span>
@@ -15,7 +14,6 @@
     </nav>
 
     <div class="d-flex">
-      <!-- Sidebar -->
       <div class="sidebar bg-light p-3">
         <ul class="nav flex-column">
           <li class="nav-item"><router-link to="/trekker/dashboard" class="nav-link">Dashboard</router-link></li>
@@ -25,7 +23,6 @@
         </ul>
       </div>
 
-      <!-- Content -->
       <div class="content flex-grow-1 p-4">
         <h3 class="mb-3">Available Treks</h3>
         <table class="table table-striped">
@@ -83,16 +80,14 @@ export default {
   min-height: 100vh;
 }
 
-/* Sidebar container */
 .sidebar {
   width: 220px;
   border-right: 1px solid #ddd;
   background-color: #f9f9f9;
 }
 
-/* Sidebar links */
 .sidebar .nav-link {
-  color: #8B5E3C; /* brown theme */
+  color: #8B5E3C; 
   font-weight: 500;
   margin-bottom: 10px;
   padding: 8px 12px;
@@ -100,14 +95,12 @@ export default {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Hover effect */
 .sidebar .nav-link:hover {
-  background-color: #F3E5AB; /* light beige hover */
-  color: #5a3a22; /* darker brown on hover */
+  background-color: #F3E5AB; 
+  color: #5a3a22;
   text-decoration: none;
 }
 
-/* Active link styling */
 .sidebar .router-link-active {
   background-color: #8B5E3C;
   color: #fff !important;

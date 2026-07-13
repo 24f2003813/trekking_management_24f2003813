@@ -1,6 +1,5 @@
 <template>
   <div class="staff-profile">
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg" style="background-color:#8B5E3C;">
       <div class="container-fluid">
         <span class="navbar-brand text-light fw-bold">Staff Profile</span>
@@ -17,12 +16,11 @@
     </nav>
 
     <div class="d-flex">
-      <!-- Sidebar -->
       <div class="sidebar bg-light p-3">
         <ul class="nav flex-column">
           <li class="nav-item"><router-link to="/staff/dashboard" class="nav-link">Dashboard</router-link></li>
           <li class="nav-item"><router-link to="/staff/profile" class="nav-link">Profile</router-link></li>
-          <!-- <li class="nav-item"><router-link to="/staff/participants" class="nav-link">Participants</router-link></li> -->
+          <li class="nav-item"><router-link to="/staff/participants" class="nav-link">Participants</router-link></li>
         </ul>
       </div>
 

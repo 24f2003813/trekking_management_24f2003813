@@ -23,7 +23,6 @@
         </ul>
       </div>
 
-
       <div class="content flex-grow-1 p-4">
         <h3 class="mb-3">Available Treks</h3>
         <div class="row mb-3">
@@ -74,6 +73,7 @@
               <th>Trek Name</th>
               <th>Status</th>
               <th>Booking Date</th>
+              <th>Payment</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -83,7 +83,11 @@
               <td>{{ b.trek_name }}</td>
               <td>{{ b.status }}</td>
               <td>{{ b.booking_date }}</td>
+              <td>{{ b.payment_flag }}</td>
               <td>
+                <button v-if="b.payment_flag !== 'paid'" class="btn btn-success btn-sm" @click="payBooking(b.Booking_id)">
+                  Pay Now
+                </button>
                 <button class="btn btn-danger btn-sm" @click="cancelBooking(b.Booking_id)">
                   Cancel
                 </button>
@@ -145,6 +149,20 @@ export default {
         }
       } catch (err) {
         console.error("Failed to load badges", err);
+      }
+    },
+    async payBooking(bookingId) {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.put(
+          `http://localhost:5000/api/bookings/${bookingId}/pay`,
+          { payment_flag: "paid" },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        alert(res.data.message);
+        this.fetchTreks(); // refresh dashboard
+      } catch (err) {
+        alert(err.response?.data?.error || "Payment failed");
       }
     },
     async bookTrek(trekId) {

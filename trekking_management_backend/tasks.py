@@ -179,6 +179,6 @@ def export_booking_history(user_id, user_email):
             f"Hello,\n\nYour booking history has been exported.\nYou can download it here: {filepath}\n\nBest,\nTrekking Management System",
             html=False
         )
-send_daily_reminders.delay()
-send_email("varshneysaanjhi@gmail.com", "Test Reminder", "This is a test reminder email.")
-mark_completed_treks.delay()
+# send_daily_reminders.delay()
+# send_email("varshneysaanjhi@gmail.com", "Test Reminder", "This is a test reminder email.")
+# mark_completed_treks.delay()

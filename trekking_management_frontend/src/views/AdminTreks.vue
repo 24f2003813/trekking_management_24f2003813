@@ -1,6 +1,5 @@
 <template>
   <div class="admin-dashboard">
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg" style="background-color:#8B5E3C;">
       <div class="container-fluid">
         <span class="navbar-brand text-light fw-bold">Admin Treks</span>
@@ -15,7 +14,6 @@
     </nav>
 
     <div class="d-flex">
-      <!-- Sidebar -->
       <div class="sidebar bg-light p-3">
         <ul class="nav flex-column">
           <li class="nav-item"><router-link to="/admin/dashboard" class="nav-link">Dashboard</router-link></li>
@@ -26,17 +24,14 @@
         </ul>
       </div>
 
-      <!-- Content -->
       <div class="content flex-grow-1 p-4">
         <h2 class="mb-4" style="color:#8B5E3C;">Manage Treks</h2>
 
-        <!-- Search -->
         <div class="input-group mb-3">
           <input type="text" class="form-control" placeholder="Search trek..." v-model="searchQuery">
           <button class="btn btn-brown" @click="fetchTreks">Search</button>
         </div>
 
-        <!-- Trek Cards -->
         <div class="row">
           <div class="col-md-5 mb-3" v-for="trek in treks" :key="trek.id">
             <div class="card shadow-sm trek-card">
@@ -49,10 +44,10 @@
                   Price: ₹{{ trek.price }} <br>
                   Slots Available: {{ trek.slots_available }} <br>
                   Status: <span :class="statusClass(trek.status)">{{ trek.status }}</span><br>
-                  Guide: {{ guideName(trek.assigned_guide_id) || 'Not Assigned' }}
+                  Guide: {{ trek.assigned_guide_name || 'Not Assigned' }}
+
                 </p>
 
-                <!-- Status Change -->
                 <div class="d-flex justify-content-between mb-2">
                   <select v-model="trek.status" @change="updateTrekStatus(trek.id, trek.status)" class="form-select form-select-sm w-auto">
                     <option value="open">Open</option>
@@ -63,7 +58,6 @@
                   <button class="btn btn-danger btn-sm" @click="deleteTrek(trek.id)">Delete</button>
                 </div>
 
-                <!-- Guide Assignment -->
                 <div>
                   <label class="form-label">Assign Guide</label>
                   <select v-model="trek.assigned_guide_id"
@@ -79,8 +73,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Message -->
         <div v-if="message" class="alert alert-info mt-3 text-center">
           {{ message }}
         </div>
@@ -136,10 +128,10 @@ export default {
         this.message = res.data.message
         this.fetchTreks()
       } catch (error) {
-        if (error.response?.status === 409) {
-          this.message = error.response.data.warning
+        if (error.response) {
+          this.message = error.response.data.warning || error.response.data.error || "Failed to assign guide"
         } else {
-          this.message = error.response?.data?.error || "Failed to assign guide"
+          this.message = "Failed to assign guide"
         }
       }
     },

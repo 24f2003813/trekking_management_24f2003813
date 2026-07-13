@@ -1,0 +1,2829 @@
+openapi: 3.0.0
+
+info:
+  title: Trekking Management System API
+  version: 1.0.0
+  description: API documentation for Trekking Management System built with Flask
+
+servers:
+  - url: http://localhost:5000
+
+tags:
+  - name: Authentication
+  - name: Trek
+  - name: Booking
+  - name: Trekker
+  - name: Admin
+  - name: Badge
+  - name: Export
+
+path:
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new trekker
+      description: Registers a new user with the role of trekker.
+      operationId: registerUser
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                  example: John Doe
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
+                contact_number:
+                  type: string
+                  example: "9876543210"
+
+      responses:
+        "201":
+          description: User registered successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Registration Done!! Escape the concrete. Explore the wild.
+                  notification:
+                    type: string
+                    example: Welcome John Doe!! Let's turn maps into memories.
+
+        "400":
+          description: Invalid input or registration failed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                MissingFields:
+                  summary: Required fields missing
+                  value:
+                    error: Name,email,password are required
+
+                EmailExists:
+                  summary: Email already registered
+                  value:
+                    error: Email already registered
+
+                WeakPassword:
+                  summary: Password too short
+                  value:
+                    error: password must be atleast 6 charachters
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      description: Authenticates a registered user and returns a JWT access token.
+      operationId: loginUser
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
+
+      responses:
+        "200":
+          description: Login successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT access token.
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  role:
+                    type: string
+                    enum:
+                      - admin
+                      - staff
+                      - trekker
+                    example: trekker
+                  notification:
+                    type: string
+                    example: Logged In John Doe!! Welcome back TrailBuddy
+
+        "401":
+          description: Invalid email or password.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Please enter Valid email or password
+
+  /api/export-history:
+    post:
+      tags:
+        - User
+      summary: Export booking history
+      description: >
+        Starts an asynchronous task to export the authenticated user's booking
+        history and sends the generated file to the user's registered email address.
+
+      operationId: exportBookingHistory
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "202":
+          description: Export request accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Export started. You will receive an email once it's ready.
+
+        "401":
+          description: Unauthorized. JWT token is missing, invalid, or expired.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+  /api/admin/dashboard:
+    get:
+      tags:
+        - Admin
+      summary: Get admin dashboard
+      description: >
+        Returns dashboard statistics for the administrator, including total
+        treks, trekkers, staff members, bookings, and the five most recent bookings.
+
+      operationId: getAdminDashboard
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Dashboard data retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Dashboard summary fetched successfully
+
+                  summary:
+                    type: object
+                    properties:
+                      total_treks:
+                        type: integer
+                        example: 25
+                      total_users:
+                        type: integer
+                        example: 150
+                      total_staff:
+                        type: integer
+                        example: 12
+                      total_bookings:
+                        type: integer
+                        example: 320
+
+                  recent_bookings:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 101
+                        trek_name:
+                          type: string
+                          example: Kedarkantha Trek
+                        user_name:
+                          type: string
+                          example: John Doe
+                        status:
+                          type: string
+                          example: booked
+                        payment_flag:
+                          type: string
+                          example: paid
+                        booking_date:
+                          type: string
+                          format: date-time
+                          example: "2025-05-20 14:30:15"
+
+        "401":
+          description: Unauthorized. JWT token is missing, invalid, or expired.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only administrators can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+  /api/admin/treks:
+    get:
+      tags:
+        - Admin
+      summary: Get all treks
+      description: Retrieves all treks. Supports searching by trek name, location, or difficulty.
+      operationId: getAllTreks
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+          description: Search treks by name, location, or difficulty.
+          example: Easy
+
+      responses:
+        "200":
+          description: List of treks retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 1
+                    name:
+                      type: string
+                      example: Kedarkantha Trek
+                    location:
+                      type: string
+                      example: Uttarakhand
+                    difficulty:
+                      type: string
+                      example: Easy
+                    status:
+                      type: string
+                      example: open
+                    description:
+                      type: string
+                      example: A beautiful winter trek.
+                    duration:
+                      type: string
+                      example: 5 Days
+                    price:
+                      type: number
+                      example: 6500
+                    slots_available:
+                      type: integer
+                      example: 20
+                    start_date:
+                      type: string
+                      format: date-time
+                      example: "2025-12-10T00:00:00"
+                    end_date:
+                      type: string
+                      format: date-time
+                      example: "2025-12-15T00:00:00"
+                    max_trekker:
+                      type: integer
+                      example: 25
+                    assigned_guide_id:
+                      type: integer
+                      nullable: true
+                      example: 4
+                    assigned_guide_name:
+                      type: string
+                      nullable: true
+                      example: Rahul Sharma
+
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Only admins can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+    post:
+      tags:
+        - Admin
+      summary: Create a new trek
+      description: Adds a new trek to the system.
+      operationId: createTrek
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - location
+                - description
+                - duration
+                - difficulty
+                - price
+                - slots_available
+                - start_date
+                - end_date
+              properties:
+                name:
+                  type: string
+                  example: Kedarkantha Trek
+                location:
+                  type: string
+                  example: Uttarakhand
+                description:
+                  type: string
+                  example: A beginner-friendly Himalayan trek.
+                duration:
+                  type: string
+                  example: 5 Days
+                difficulty:
+                  type: string
+                  example: Easy
+                price:
+                  type: number
+                  example: 6500
+                slots_available:
+                  type: integer
+                  example: 20
+                start_date:
+                  type: string
+                  format: date-time
+                  example: "2025-12-10T00:00:00"
+                end_date:
+                  type: string
+                  format: date-time
+                  example: "2025-12-15T00:00:00"
+                status:
+                  type: string
+                  default: open
+                  example: open
+                max_trekker:
+                  type: integer
+                  default: 15
+                  example: 20
+                assigned_guide_id:
+                  type: integer
+                  nullable: true
+                  example: 3
+
+      responses:
+        "201":
+          description: Trek created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Trek added successfully admin!!
+                  notification:
+                    type: string
+                    example: Trek for Uttarakhand added to the trek list
+
+        "400":
+          description: Required field missing.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: name is required
+
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Only admins can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+  /api/admin/treks/{trek_id}:
+    put:
+      tags:
+        - Admin
+      summary: Update trek details
+      description: Updates an existing trek. The administrator can modify the trek name, location, difficulty, status, and assigned guide.
+      operationId: updateTrek
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: trek_id
+          in: path
+          required: true
+          description: ID of the trek to update.
+          schema:
+            type: integer
+            example: 1
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Kedarkantha Trek
+                location:
+                  type: string
+                  example: Uttarakhand
+                difficulty:
+                  type: string
+                  example: Moderate
+                status:
+                  type: string
+                  enum:
+                    - open
+                    - full
+                    - completed
+                    - cancelled
+                  example: completed
+                assigned_guide_id:
+                  type: integer
+                  example: 4
+
+      responses:
+        "200":
+          description: Trek updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Trek details are updated successfully
+                  notification:
+                    type: string
+                    example: Trek 'Kedarkantha Trek' is updated.
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only administrators can update treks.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+        "404":
+          description: Trek not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry No trek found
+
+        "400":
+          description: Invalid guide ID.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Invalid staff ID
+
+    delete:
+      tags:
+        - Admin
+      summary: Delete a trek
+      description: Deletes a trek from the system.
+      operationId: deleteTrek
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: trek_id
+          in: path
+          required: true
+          description: ID of the trek to delete.
+          schema:
+            type: integer
+            example: 1
+
+      responses:
+        "200":
+          description: Trek deleted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Trek is deleted
+                  notification:
+                    type: string
+                    example: Trek 'Kedarkantha Trek' is removed
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only administrators can delete treks.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+        "404":
+          description: Trek not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry No trek found
+
+  /api/admin/eligible_guides:
+    get:
+      tags:
+        - Admin
+      summary: Get eligible guides
+      description: >
+        Retrieves a list of staff members who are eligible to be assigned as trek
+        guides. A guide is considered eligible if they are assigned to fewer than
+        three active (open) treks.
+
+      operationId: getEligibleGuides
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: List of eligible guides retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 3
+                    name:
+                      type: string
+                      example: Rahul Sharma
+                    specialization:
+                      type: string
+                      example: Himalayan Trekking
+
+        "401":
+          description: Unauthorized. JWT token is missing, invalid, or expired.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only administrators can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+  /api/admin/treks/{trek_id}/assign_guide:
+    put:
+      tags:
+        - Admin
+      summary: Assign a guide to a trek
+      description: >
+        Assigns a staff member as the guide for a trek. A guide can manage a
+        maximum of three active (open) treks. If a trek already has a guide
+        assigned, the assignment can be overridden by setting the optional
+        `force` field to `true`.
+
+      operationId: assignGuideToTrek
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: trek_id
+          in: path
+          required: true
+          description: Unique ID of the trek.
+          schema:
+            type: integer
+            example: 5
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - guide_id
+              properties:
+                guide_id:
+                  type: integer
+                  description: ID of the staff member to assign.
+                  example: 3
+                force:
+                  type: boolean
+                  description: >
+                    Set to true to replace the currently assigned guide.
+                  default: false
+                  example: false
+
+      responses:
+        "200":
+          description: Guide assigned successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Guide is assigned sucessfully to the Kedarkantha trek
+                  notification:
+                    type: string
+                    example: Guide 'Rahul Sharma' assigned to the Kedarkantha
+
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                MissingGuideId:
+                  summary: Guide ID is missing
+                  value:
+                    error: Guide ID is required
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only administrators can assign guides.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+        "404":
+          description: Trek or guide not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                TrekNotFound:
+                  value:
+                    error: Sorry, Trek not found
+                GuideNotFound:
+                  value:
+                    error: Sorry, Staff id not found
+
+        "409":
+          description: Assignment conflict.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  warning:
+                    type: string
+              examples:
+                GuideLimitReached:
+                  summary: Guide already has three active treks
+                  value:
+                    warning: Guide Rahul Sharma already has 3 active treks
+
+                GuideAlreadyAssigned:
+                  summary: Trek already has a guide assigned
+                  value:
+                    warning: Trek 'Kedarkantha' already has a guide assigned (ID 2).
+
+  /api/admin/staff:
+    get:
+      tags:
+        - Admin
+      summary: Get all staff members
+      description: Retrieves all staff members. Supports searching by name, experience, or specialization.
+      operationId: getStaffMembers
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Search staff by name, experience, or specialization.
+          schema:
+            type: string
+            example: Himalayan
+
+      responses:
+        "200":
+          description: Staff list retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 3
+                    name:
+                      type: string
+                      example: Rahul Sharma
+                    email:
+                      type: string
+                      format: email
+                      example: rahul@example.com
+                    specialization:
+                      type: string
+                      example: Himalayan Trekking
+                    status:
+                      type: string
+                      example: active
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Only administrators can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+    post:
+      tags:
+        - Admin
+      summary: Add a new staff member
+      description: Creates a new staff account.
+
+      operationId: createStaffMember
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+                - contact_number
+              properties:
+                name:
+                  type: string
+                  example: Rahul Sharma
+                email:
+                  type: string
+                  format: email
+                  example: rahul@example.com
+                password:
+                  type: string
+                  format: password
+                  example: rahul123
+                contact_number:
+                  type: string
+                  example: "9876543210"
+                specialization:
+                  type: string
+                  example: Himalayan Trekking
+                experience:
+                  type: string
+                  example: 5 Years
+
+      responses:
+        "200":
+          description: Staff member created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: New helper added to our team
+                  notification:
+                    type: string
+                    example: Staff 'Rahul Sharma' created
+
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                MissingFields:
+                  value:
+                    error: Name , email and password are required to mention
+
+                EmailAlreadyExists:
+                  value:
+                    error: Staff member is already registered
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Only administrators can create staff members.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+  /api/admin/staff/{staff_id}:
+    put:
+      tags:
+        - Admin
+      summary: Update staff details
+      description: >
+        Updates the details of an existing staff member. If the staff member is
+        blocked, they are automatically unassigned from all treks.
+
+      operationId: updateStaff
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: staff_id
+          in: path
+          required: true
+          description: ID of the staff member.
+          schema:
+            type: integer
+            example: 5
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Rahul Sharma
+                email:
+                  type: string
+                  format: email
+                  example: rahul@example.com
+                specialization:
+                  type: string
+                  example: Himalayan Trekking
+                status:
+                  type: string
+                  example: active
+
+      responses:
+        "200":
+          description: Staff details updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Staff member detail is updated sucessfully
+                  notification:
+                    type: string
+                    example: Staff 'Rahul Sharma' details updated
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only administrators can update staff members.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+        "404":
+          description: Staff member not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: This staff member is not found
+
+    delete:
+      tags:
+        - Admin
+      summary: Delete a staff member
+      description: >
+        Deletes a staff member from the system. Before deletion, the staff member
+        is unassigned from any treks they are currently guiding.
+
+      operationId: deleteStaff
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: staff_id
+          in: path
+          required: true
+          description: ID of the staff member.
+          schema:
+            type: integer
+            example: 5
+
+      responses:
+        "200":
+          description: Staff member deleted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Staff Member deleted Sucessfully
+                  notification:
+                    type: string
+                    example: Staff 'Rahul Sharma' removed
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only administrators can delete staff members.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+        "404":
+          description: Staff member not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: This staff member is not found
+
+  /api/admin/users:
+    get:
+      tags:
+        - Admin
+      summary: Get all trekkers
+      description: >
+        Retrieves a list of all registered trekkers. Supports searching by
+        trekker name.
+
+      operationId: getAllTrekkers
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Search trekkers by name.
+          schema:
+            type: string
+            example: John
+
+      responses:
+        "200":
+          description: List of trekkers retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 12
+                    name:
+                      type: string
+                      example: John Doe
+                    email:
+                      type: string
+                      format: email
+                      example: john@example.com
+                    contact_number:
+                      type: string
+                      example: "9876543210"
+                    status:
+                      type: string
+                      example: active
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only administrators can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+  /api/admin/bookings:
+    get:
+      tags:
+        - Admin
+      summary: Get all bookings
+      description: >
+        Retrieves a list of all trek bookings. Supports searching by trekker name,
+        trek name, booking status, or payment status.
+
+      operationId: listBookings
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Search bookings by trekker name, trek name, booking status, or payment status.
+          schema:
+            type: string
+          example: booked
+
+      responses:
+        "200":
+          description: Bookings retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 15
+                    trek_id:
+                      type: integer
+                      example: 4
+                    trek_name:
+                      type: string
+                      example: Kedarkantha Trek
+                    user_id:
+                      type: integer
+                      example: 12
+                    user_name:
+                      type: string
+                      example: John Doe
+                    status:
+                      type: string
+                      example: booked
+                    payment_status:
+                      type: string
+                      example: paid
+                    booking_date:
+                      type: string
+                      format: date-time
+                      example: "2025-06-18 14:30:00"
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only administrators can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+                
+  /api/admin/bookings/{booking_id}/status:
+    put:
+      tags:
+        - Admin
+      summary: Update booking status
+      description: >
+        Updates the status of a booking. Allowed values are `completed` and
+        `cancelled`. When a booking is marked as `completed`, eligible badges
+        are automatically assigned to the trekker.
+
+      operationId: updateBookingStatus
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: booking_id
+          in: path
+          required: true
+          description: Unique ID of the booking.
+          schema:
+            type: integer
+            example: 15
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - completed
+                    - cancelled
+                  example: completed
+
+      responses:
+        "200":
+          description: Booking status updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Status updated sucessfully
+                  notification:
+                    type: string
+                    example: Booking id 15 marked as completed
+
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                StatusRequired:
+                  value:
+                    error: Status is required
+
+                InvalidStatus:
+                  value:
+                    error: Please enter valid status
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only administrators can update bookings.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+        "404":
+          description: Booking not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Booking not found
+
+    delete:
+      tags:
+        - Admin
+      summary: Delete a booking
+      description: Deletes an existing booking.
+
+      operationId: deleteBooking
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: booking_id
+          in: path
+          required: true
+          description: Unique ID of the booking.
+          schema:
+            type: integer
+            example: 15
+
+      responses:
+        "200":
+          description: Booking deleted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Booking deleted successfully
+                  notification:
+                    type: string
+                    example: Booking 15 removed.
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only administrators can delete bookings.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+        "404":
+          description: Booking not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Booking not found
+
+  /api/staff/dashboard:
+    get:
+      tags:
+        - Staff
+      summary: Get staff dashboard
+      description: Retrieves dashboard information for the logged-in staff member, including assigned treks and total booked participants.
+
+      operationId: getStaffDashboard
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Staff dashboard retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overview:
+                    type: object
+                    properties:
+                      treks_assigned:
+                        type: integer
+                        example: 3
+                      participants_total:
+                        type: integer
+                        example: 42
+                  trek_details:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        trek_id:
+                          type: integer
+                          example: 7
+                        trek_name:
+                          type: string
+                          example: Valley of Flowers Trek
+                        trek_status:
+                          type: string
+                          example: open
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only staff members can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+  /api/staff/trek:
+    get:
+      tags:
+        - Staff
+      summary: Get assigned trek details
+      description: Retrieves details of the trek assigned to the logged-in staff member.
+
+      operationId: getAssignedTrek
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Assigned trek details retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trek_id:
+                    type: integer
+                    example: 5
+                  trek_name:
+                    type: string
+                    example: Kedarkantha Trek
+                  location:
+                    type: string
+                    example: Uttarakhand
+                  trek_status:
+                    type: string
+                    example: open
+                  participant_count:
+                    type: integer
+                    example: 18
+                  max_trekker:
+                    type: integer
+                    example: 25
+                  start_date:
+                    type: string
+                    format: date
+                    example: "2025-12-10"
+                  end_date:
+                    type: string
+                    format: date
+                    example: "2025-12-15"
+                  description:
+                    type: string
+                    example: A scenic winter trek through snow-covered forests.
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only staff members can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Unauthorized
+
+        "404":
+          description: No trek assigned to the logged-in staff member.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: No trek assigned
+
+  /api/staff/treks/{trek_id}/slots_capacity:
+    put:
+      tags:
+        - Staff
+      summary: Update trek capacity
+      description: Updates the maximum participant capacity for a trek assigned to the logged-in staff member.
+
+      operationId: updateTrekCapacity
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: trek_id
+          in: path
+          required: true
+          description: Unique ID of the assigned trek.
+          schema:
+            type: integer
+            example: 5
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - max_trekker
+              properties:
+                max_trekker:
+                  type: integer
+                  example: 30
+
+      responses:
+        "200":
+          description: Trek capacity updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Capacity of trek 'Kedarkantha Trek' to 30
+
+        "400":
+          description: Invalid request or completed trek.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                MissingCapacity:
+                  value:
+                    error: Maximum Trekker limit is required
+                CompletedTrek:
+                  value:
+                    error: Cannot update capacity for a completed trek
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only staff members can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+        "404":
+          description: Trek not found or not assigned to the logged-in staff member.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Trek not found or this trek is not assigned to you
+
+  /api/staff/treks/{trek_id}/status:
+    put:
+      tags:
+        - Staff
+      summary: Update trek status
+      description: >
+        Updates the status of a trek assigned to the logged-in staff member.
+        When the trek is marked as `completed`, all booked participants are
+        marked as completed. When marked as `cancelled`, all booked or completed
+        bookings are cancelled.
+
+      operationId: updateTrekStatus
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: trek_id
+          in: path
+          required: true
+          description: Unique ID of the assigned trek.
+          schema:
+            type: integer
+            example: 5
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - open
+                    - completed
+                    - cancelled
+                  example: completed
+
+      responses:
+        "200":
+          description: Trek status updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Status updated to 'completed'
+
+        "400":
+          description: Invalid request or trek cannot be updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                TrekNotAssigned:
+                  value:
+                    error: Trek not found or trek is not assigned to you
+
+                CompletedTrek:
+                  value:
+                    error: Cannot change status of a completed trek
+
+                InvalidStatus:
+                  value:
+                    error: Please provide valid status
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only staff members can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access the page
+
+  /api/staff/participants:
+    get:
+      tags:
+        - Staff
+      summary: Get trek participants
+      description: Retrieves a list of all participants with active bookings for the treks assigned to the logged-in staff member.
+
+      operationId: getTrekParticipants
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Participants retrieved successfully. Returns an empty array if no treks are assigned or no participants are booked.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 12
+                    name:
+                      type: string
+                      example: John Doe
+                    email:
+                      type: string
+                      format: email
+                      example: john@example.com
+                    contact_number:
+                      type: string
+                      example: "9876543210"
+                    trek:
+                      type: string
+                      example: Kedarkantha Trek
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only staff members can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access the page
+
+  /api/staff/profile:
+    get:
+      tags:
+        - Staff
+      summary: Get staff profile
+      description: Retrieves the profile information of the logged-in staff member.
+
+      operationId: getStaffProfile
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Staff profile retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: Rahul Sharma
+                  email:
+                    type: string
+                    format: email
+                    example: rahul@example.com
+                  contact_number:
+                    type: string
+                    example: "9876543210"
+                  experience:
+                    type: string
+                    example: 5 years
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only staff members can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+    put:
+      tags:
+        - Staff
+      summary: Update staff profile
+      description: Updates the profile information of the logged-in staff member.
+
+      operationId: updateStaffProfile
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Rahul Sharma
+                contact_number:
+                  type: string
+                  example: "9876543210"
+                experience:
+                  type: string
+                  example: 6 years
+
+      responses:
+        "200":
+          description: Staff profile updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Profile updated successfully
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only staff members can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+  /api/user/dashboard:
+    get:
+      tags:
+        - Trekker
+      summary: Get trekker dashboard
+      description: >
+        Retrieves the logged-in trekker's dashboard, including available open
+        treks (with optional filters) and the trekker's current booked treks.
+
+      operationId: getUserDashboard
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: name
+          in: query
+          required: false
+          description: Filter available treks by trek name.
+          schema:
+            type: string
+            example: Kedarkantha
+
+        - name: location
+          in: query
+          required: false
+          description: Filter available treks by location.
+          schema:
+            type: string
+            example: Uttarakhand
+
+        - name: difficulty
+          in: query
+          required: false
+          description: Filter available treks by difficulty level.
+          schema:
+            type: string
+            example: Moderate
+
+      responses:
+        "200":
+          description: Dashboard retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available_treks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 3
+                        name:
+                          type: string
+                          example: Kedarkantha Trek
+                        location:
+                          type: string
+                          example: Uttarakhand
+                        difficulty:
+                          type: string
+                          example: Moderate
+                        status:
+                          type: string
+                          example: open
+                        max_trekker:
+                          type: integer
+                          example: 25
+                        slots_available:
+                          type: integer
+                          example: 10
+
+                  booked_treks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Booking_id:
+                          type: integer
+                          example: 15
+                        trek_id:
+                          type: integer
+                          example: 3
+                        trek_name:
+                          type: string
+                          example: Kedarkantha Trek
+                        status:
+                          type: string
+                          example: booked
+                        booking_date:
+                          type: string
+                          format: date-time
+                          example: "2025-07-15 10:30:00"
+                        payment_flag:
+                          type: string
+                          example: pending
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only trekkers can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+  /api/user/history:
+    get:
+      tags:
+        - Trekker
+      summary: Get trek booking history
+      description: Retrieves the completed and cancelled booking history of the logged-in trekker.
+
+      operationId: getBookingHistory
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Booking history retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: John Doe
+                  history:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        booking_id:
+                          type: integer
+                          example: 12
+                        trek_id:
+                          type: integer
+                          example: 4
+                        trek_name:
+                          type: string
+                          example: Kedarkantha Trek
+                        status:
+                          type: string
+                          example: completed
+                        booking_date:
+                          type: string
+                          format: date-time
+                          example: "2025-07-10 09:30:00"
+                        trek_date:
+                          type: string
+                          example: "15-07-2025 to 20-07-2025"
+                        payment_flag:
+                          type: string
+                          example: paid
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only trekkers can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Unauthorized
+
+  /api/user/booking_cancel/{booking_id}:
+    put:
+      tags:
+        - Trekker
+      summary: Cancel a booking
+      description: Cancels an active booking belonging to the logged-in trekker.
+
+      operationId: cancelBooking
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: booking_id
+          in: path
+          required: true
+          description: Unique ID of the booking to cancel.
+          schema:
+            type: integer
+            example: 12
+
+      responses:
+        "200":
+          description: Booking cancelled successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Booking cancelled sucessfully
+                  notification:
+                    type: string
+                    example: Booking Kedarkantha Trek cancelled sucessfully
+
+        "400":
+          description: Booking cannot be cancelled because it is not active.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Only active bookings can be cancelled
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only trekkers can cancel bookings.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+        "404":
+          description: Booking not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Booking not found
+
+  /api/bookings/{booking_id}/pay:
+    put:
+      tags:
+        - Trekker
+      summary: Update booking payment status
+      description: Updates the payment status of a booking belonging to the logged-in trekker.
+
+      operationId: updateBookingPayment
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: booking_id
+          in: path
+          required: true
+          description: Unique ID of the booking.
+          schema:
+            type: integer
+            example: 15
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - payment_flag
+              properties:
+                payment_flag:
+                  type: string
+                  enum:
+                    - paid
+                    - failed
+                  example: paid
+
+      responses:
+        "200":
+          description: Payment status updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Payment status updated
+                  notification:
+                    type: string
+                    example: Booking 15 marked as paid.
+
+        "400":
+          description: Invalid payment status.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Payment flag must be 'paid' or 'failed'
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only trekkers can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+        "404":
+          description: Booking not found or does not belong to the logged-in trekker.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Booking not found
+
+  /api/user/edit_profile:
+    get:
+      tags:
+        - Trekker
+      summary: Get trekker profile
+      description: Returns the authenticated trekker's profile information.
+
+      operationId: getTrekkerProfile
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Profile retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 5
+                  name:
+                    type: string
+                    example: Rahul Sharma
+                  email:
+                    type: string
+                    format: email
+                    example: rahul@example.com
+                  contact_number:
+                    type: string
+                    example: "9876543210"
+                  emergency_contact_number:
+                    type: string
+                    example: "9123456789"
+                  status:
+                    type: string
+                    example: active
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only trekkers can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+    put:
+      tags:
+        - Trekker
+      summary: Update trekker profile
+      description: Updates the authenticated trekker's profile details.
+
+      operationId: updateTrekkerProfile
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Rahul Sharma
+                email:
+                  type: string
+                  format: email
+                  example: rahul@example.com
+                contact_number:
+                  type: string
+                  example: "9876543210"
+                emergency_contact_number:
+                  type: string
+                  example: "9123456789"
+
+      responses:
+        "200":
+          description: Profile updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Profile updated successfully
+                  notification:
+                    type: string
+                    example: Trekker 'Rahul Sharma' profile updated
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only trekkers can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Sorry you cannot access this page
+
+  /api/trekker/treks/{trek_id}/book:
+    post:
+      tags:
+        - Trekker
+      summary: Book a trek
+      description: Allows an authenticated trekker to book an available trek.
+
+      operationId: bookTrek
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: trek_id
+          in: path
+          required: true
+          description: ID of the trek to book.
+          schema:
+            type: integer
+            example: 3
+
+      responses:
+        "201":
+          description: Trek booked successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Trek booked successfully
+                  booking_id:
+                    type: integer
+                    example: 25
+                  notification:
+                    type: string
+                    example: Trek 'Everest Base Camp' booked by Rahul Sharma
+
+        "400":
+          description: Invalid booking request.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    examples:
+                      trekUnavailable:
+                        value: Trek not available for booking
+                      alreadyBooked:
+                        value: You have already booked this trek
+                      noSlots:
+                        value: No slots available
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only trekkers can book treks.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Unauthorized
+
+  /api/trekker/treks:
+    get:
+      tags:
+        - Trekker
+      summary: Get all open treks
+      description: Retrieves a list of all treks that are currently open for booking.
+
+      operationId: listOpenTreks
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Open treks retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 3
+                    name:
+                      type: string
+                      example: Everest Base Camp
+                    location:
+                      type: string
+                      example: Nepal
+                    difficulty:
+                      type: string
+                      example: Hard
+                    price:
+                      type: number
+                      format: float
+                      example: 25000
+                    start_date:
+                      type: string
+                      example: 10-09-2026
+                    end_date:
+                      type: string
+                      example: 18-09-2026
+                    slots_available:
+                      type: integer
+                      example: 8
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only trekkers can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Unauthorized
+
+  /api/trekker/treks/{trek_id}:
+    get:
+      tags:
+        - Trekker
+      summary: Get trek details
+      description: Retrieves detailed information about a specific open trek.
+
+      operationId: getTrekDetails
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: trek_id
+          in: path
+          required: true
+          description: ID of the trek.
+          schema:
+            type: integer
+            example: 3
+
+      responses:
+        "200":
+          description: Trek details retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 3
+                  name:
+                    type: string
+                    example: Everest Base Camp
+                  location:
+                    type: string
+                    example: Nepal
+                  description:
+                    type: string
+                    example: A challenging trek through the Himalayas.
+                  difficulty:
+                    type: string
+                    example: Hard
+                  price:
+                    type: number
+                    format: float
+                    example: 25000
+                  start_date:
+                    type: string
+                    example: 10-09-2026
+                  end_date:
+                    type: string
+                    example: 18-09-2026
+                  slots_available:
+                    type: integer
+                    example: 8
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "404":
+          description: Trek not found or not available.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Trek not available
+
+  /api/user/badges:
+    get:
+      tags:
+        - Trekker
+      summary: Get user badge progress
+      description: Retrieves all available badges along with the authenticated trekker's progress toward earning each badge.
+
+      operationId: getUserBadges
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Badge progress retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 1
+                    name:
+                      type: string
+                      example: Trailblazer
+                    description:
+                      type: string
+                      example: Complete your first trek
+                    criteria:
+                      type: integer
+                      example: 1
+                    progress:
+                      type: integer
+                      example: 1
+
+        "401":
+          description: Unauthorized. JWT token is missing or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+
+        "403":
+          description: Forbidden. Only trekkers can access this endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Unauthorized

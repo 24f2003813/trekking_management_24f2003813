@@ -28,7 +28,7 @@
         <h2 class="mb-4" style="color:#8B5E3C;">Manage Bookings</h2>
 
         <div class="input-group mb-3">
-          <input type="text" class="form-control" placeholder="Search booking..." v-model="searchQuery">
+          <input type="text" class="form-control" placeholder="Search booking..." v-model="searchQuery" @keyup.enter="fetchBookings">
           <button class="btn btn-brown" @click="fetchBookings">Search</button>
         </div>
 
